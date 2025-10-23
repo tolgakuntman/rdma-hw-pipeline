@@ -1,0 +1,86 @@
+site_name: Research & Development - EMBED
+theme:
+  name: material
+  custom_dir: 'theme'
+  features:
+    - navigation.tabs
+#    - navigation.sections
+    - toc.integrate
+    - navigation.top
+    - search.suggest
+    - search.highlight
+    - content.tabs.link
+    - content.code.annotation
+    - content.code.copy
+  language: en
+  palette:
+    - scheme: default
+      toggle:
+        icon: material/toggle-switch-off-outline 
+        name: Switch to dark mode
+      primary: blue
+      accent: light blue 
+    - scheme: slate 
+      toggle:
+        icon: material/toggle-switch
+        name: Switch to light mode    
+      primary: light green
+      accent: lime
+
+plugins:
+  - search
+  - build_plantuml:
+      render: 'local' # or "local" for local rendering
+      bin_path: '/usr/bin/plantuml' # ignored when render: server
+      server: 'http://www.plantuml.com/plantuml' # official plantuml server
+      disable_ssl_certificate_validation: true # for self-signed and invalid certs
+      output_format: 'svg' # or "png"
+      allow_multiple_roots: false # in case your codebase contains more locations for diagrams (all ending in diagram_root)
+      diagram_root: 'docs/diagrams' # should reside under docs_dir
+      output_folder: 'out'
+      input_folder: 'src'
+      input_extensions: '' # comma separated list of extensions to parse, by default every file is parsed
+  # - with-pdf
+
+
+extra:
+  social:
+    - icon: fontawesome:graduation-cap
+      link: https://github.com/zyuri
+
+extra_javascript:
+  - https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.4/MathJax.js?config=TeX-AMS-MML_HTMLorMML
+
+markdown_extensions:
+  - mdx_math
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.inlinehilite
+  - pymdownx.snippets
+  - admonition
+  - pymdownx.arithmatex:
+      generic: true
+  - footnotes
+  - admonition
+  - pymdownx.details
+  - pymdownx.superfences
+  - pymdownx.mark
+  - def_list
+  - pymdownx.tasklist:
+      custom_checkbox: true
+  - attr_list
+
+copyright: |
+  &copy; 2024 <a href=""  target="_blank" rel="noopener">TEAM Name</a>
+
+nav:
+ - Project: # This can be a grouping header, in that case do not put a file name behind it 
+   - Overview:
+     - Subtasks: project/overview.md
+   - Kria SoM:
+     - More info : kria.md
+   - MkDocs : 
+     - Info : index.md
+     - Markdown : extra.md
+ - Team X:
+   - Description : project/description.md
