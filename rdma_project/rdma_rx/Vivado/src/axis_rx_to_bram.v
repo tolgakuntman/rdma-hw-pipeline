@@ -1,8 +1,3 @@
-// axis_rx_to_rdma.v
-// AXI Ethernet RX (m_axis_rxd + m_axis_rxs) --> RDMA RX decapsulator
-// Gelen her frame'i doğrudan AXI-Stream olarak ileriye iletir.
-// BRAM YOK: sadece AXIS pass-through + basit status çıkışı.
-
 module axis_rx_to_bram #(
     parameter DUMMY = 0    // eski ADDR_WIDTH vs. yok, placeholder
 )(
