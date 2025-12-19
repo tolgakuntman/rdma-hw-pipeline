@@ -1,20 +1,23 @@
+----------------------------------------------------------------------------------
+-- Company: KUL - Group T - RDMA Team
+-- Engineer: Tolga Kuntman <kuntmantolga@gmail.com>
+-- 
+-- Create Date: 12/02/2025 12:09:11 PM
+-- Design Name: 
+-- Module Name: tx_header_inserter
+-- Project Name: RDMA
+-- Target Devices: Kria KR260
+-- Tool Versions: 
+-- Description: 
+-- 
+-- Dependencies: 
+-- 
+-- Revision:
+-- Revision 0.01 - File Created
+-- Additional Comments:
+-- 
+----------------------------------------------------------------------------------
 `timescale 1ns / 1ps
-
-////////////////////////////////////////////////////////////////////////////////
-// Module: tx_header_inserter
-// 
-// Description:
-//   Inserts RDMA header before streaming data payload
-//   - Receives data from data mover (AXI-Stream slave)
-//   - Receives RDMA header metadata via control wires
-//   - Outputs RDMA header followed by data payload (AXI-Stream master)
-//
-// FSM States:
-//   IDLE        - Wait for start signal and valid header metadata
-//   SEND_HEADER - Stream RDMA header fields to master
-//   SEND_DATA   - Pass-through data from slave to master
-//
-////////////////////////////////////////////////////////////////////////////////
 
 module tx_header_inserter #(
     // AXI-Stream Parameters

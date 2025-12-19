@@ -1,33 +1,23 @@
+----------------------------------------------------------------------------------
+-- Company: KUL - Group T - RDMA Team
+-- Engineer: Tolga Kuntman <kuntmantolga@gmail.com>
+-- 
+-- Create Date: 12/02/2025 12:08:21 PM
+-- Design Name: 
+-- Module Name: tx_streamer
+-- Project Name: RDMA
+-- Target Devices: Kria KR260
+-- Tool Versions: 
+-- Description: 
+-- 
+-- Dependencies: 
+-- 
+-- Revision:
+-- Revision 0.01 - File Created
+-- Additional Comments:
+-- 
+----------------------------------------------------------------------------------
 `timescale 1ns / 1ps
-
-////////////////////////////////////////////////////////////////////////////////
-// Module: tx_streamer
-// 
-// Description:
-//   Send engine that orchestrates RDMA packet transmission with fragmentation
-//   - Accepts send commands from rdma_controller (SQ index, addr, len, flags)
-//   - Fragments large payloads respecting block size and 4KB boundaries
-//   - Programs tx_header_inserter with RDMA metadata
-//   - Issues MM2S commands to Data Mover for payload streaming
-//   - Returns completion status to controller when all fragments sent
-//
-// Fragmentation Logic:
-//   - Clamps each chunk to configured block size (e.g., 4096 bytes)
-//   - Respects 4KB address alignment for AXI Data Mover
-//   - Tracks fragment ID and offset for multi-fragment messages
-//   - Ensures sequential transmission of all fragments
-//
-// FSM States:
-//   IDLE           - Wait for send command from controller
-//   INIT_FRAGMENT  - Initialize counters for new fragment
-//   PROGRAM_HEADER - Configure header inserter with RDMA metadata
-//   START_HEADER   - Pulse start_tx to header inserter
-//   ISSUE_DM_CMD   - Send MM2S command to Data Mover
-//   WAIT_COMPLETE  - Wait for Data Mover and header inserter completion
-//   UPDATE_STATE   - Advance counters, check if more fragments needed
-//   SEND_CPL       - Return completion to controller
-//
-////////////////////////////////////////////////////////////////////////////////
 
 module tx_streamer #(
     // Data Mover Parameters

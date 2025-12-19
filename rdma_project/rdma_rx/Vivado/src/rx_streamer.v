@@ -1,29 +1,23 @@
+----------------------------------------------------------------------------------
+-- Company: KUL - Group T - RDMA Team
+-- Engineer: Tolga Kuntman <kuntmantolga@gmail.com>
+-- 
+-- Create Date: 11/13/2024 12:09:11 PM
+-- Design Name: 
+-- Module Name: rx_streamer
+-- Project Name: RDMA
+-- Target Devices: Kria KR260
+-- Tool Versions: 
+-- Description: 
+-- 
+-- Dependencies: 
+-- 
+-- Revision:
+-- Revision 0.01 - File Created
+-- Additional Comments:
+-- 
+----------------------------------------------------------------------------------
 `timescale 1ns / 1ps
-
-////////////////////////////////////////////////////////////////////////////////
-// Module: rx_streamer
-// 
-// Description:
-//   Receive engine that orchestrates RDMA WRITE packet reception
-//   - Receives packets from network via rx_header_parser
-//   - Extracts RDMA WRITE operation details from parsed header
-//   - Issues S2MM commands to Data Mover to write payload to DDR
-//   - Operates independently without rdma_controller coordination
-//
-// Operation:
-//   - Waits for header_valid pulse from rx_header_parser
-//   - Checks if opcode indicates WRITE operation
-//   - Programs Data Mover S2MM with destination address and length
-//   - Waits for write completion
-//   - Returns to idle for next packet
-//
-// FSM States:
-//   IDLE           - Wait for incoming packet header
-//   CHECK_OPCODE   - Verify this is a WRITE operation
-//   ISSUE_DM_CMD   - Send S2MM command to Data Mover
-//   WAIT_COMPLETE  - Wait for Data Mover write completion
-//
-////////////////////////////////////////////////////////////////////////////////
 
 module rx_streamer #(
     // Data Mover Parameters

@@ -1,3 +1,23 @@
+----------------------------------------------------------------------------------
+-- Company: KUL - Group T - RDMA Team
+-- Engineer: Tolga Kuntman <kuntmantolga@gmail.com>
+-- 
+-- Create Date: 11/13/2024 12:09:11 PM
+-- Design Name: 
+-- Module Name: rx_header_parser
+-- Project Name: RDMA
+-- Target Devices: Kria KR260
+-- Tool Versions: 
+-- Description: 
+-- 
+-- Dependencies: 
+-- 
+-- Revision:
+-- Revision 0.01 - File Created
+-- Additional Comments:
+-- 
+----------------------------------------------------------------------------------
+
 `timescale 1ns / 1ps
 
 module rx_header_parser #(
