@@ -74,13 +74,21 @@ copyright: |
   &copy; 2024 <a href=""  target="_blank" rel="noopener">TEAM Name</a>
 
 nav:
- - Project: # This can be a grouping header, in that case do not put a file name behind it 
-   - Overview:
-     - Subtasks: project/overview.md
-   - Kria SoM:
-     - More info : kria.md
-   - MkDocs : 
-     - Info : index.md
-     - Markdown : extra.md
- - Team X:
-   - Description : project/description.md
+  - Project: # This can be a grouping header, in that case do not put a file name behind it 
+    - Overview:
+      - Subtasks: project/overview.md
+    - Kria SoM:
+      - More info : kria.md
+    - MkDocs : 
+      - Info : index.md
+      - Markdown : extra.md
+  - Team H:
+    - Description : project/description.md
+  - Part 1: 
+  - Part 2: 
+    - IP Encapsulator : 
+      - Info : project/ip_encapsulator/ip_encapsulator_text.md
+  - Part 3:
+  - Part 4:
+
+      
