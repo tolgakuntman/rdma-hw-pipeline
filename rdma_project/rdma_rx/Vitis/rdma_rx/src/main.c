@@ -10,40 +10,39 @@
 #include <xil_types.h>
 
 /* -------------------------------------------------------------------------
- * Donanım ID’leri
+ * Hardware IDs
  * ------------------------------------------------------------------------- */
 #define ETH_DEV_ID          0
 
-/* KR260 kartında çalışan PHY adresi */
-#define PHY_ADDR_CONFIG     2
+/* PHY address used on the KR260 board */
+#define PHY_ADDR_CONFIG     2   //important
 
-/* MAC adresi (TX pattern generator ile de aynısı) */
+/* MAC address (should be defined from PS and match the RDMA_tx side MAC) */
 static u8 BoardMac[6] = {0x00, 0x0A, 0x35, 0x01, 0x02, 0x03};
 
-/* PHY register adresleri */
+/* PHY register addresses (written in PHY datasheet)*/
 #define PHY_REG_BMCR   0
 #define PHY_REG_BMSR   1
 
-/* BMCR bitleri */
-#define BMCR_AUTONEG_EN  0x1000
-#define BMCR_RESTART_AN  0x0200
+/* BMCR bits (Basic Mode Control Register) */
+#define BMCR_AUTONEG_EN  0x1000   //enable auto negotiation
+#define BMCR_RESTART_AN  0x0200   //restart auto negotiation 
 
-/* BMSR bitleri */
+/* BMSR bits (Basic Mode Status Register) */
 #define BMSR_LINK_STATUS  0x0004
 
 /* -------------------------------------------------------------------------
- * RDMA yazılarının gittiği DDR buffer
+ * DDR buffer where RDMA writes will land
  * ------------------------------------------------------------------------- */
 #define REMOTE_BUFFER_BASE 0x20000000U
-#define REMOTE_BUFFER_SIZE_BYTES  (64 * 1024)   // örnek: 64 KB’lik bölge
+#define REMOTE_BUFFER_SIZE_BYTES  (64 * 1024)   // Reserved 64 KB DDR region (only the first 16 KB is used in the current tests)
 
 volatile uint32_t *remote_buff = (volatile uint32_t *) REMOTE_BUFFER_BASE;
 
 static XAxiEthernet EthInst;
 
-
 /* ------------------------------------------------------------------------- */
-/* DDR snapshot helper (REMOTE_BUFFER_BASE’ten itibaren ilk N word) */
+/* DDR snapshot helper (first N words from REMOTE_BUFFER_BASE) (we need this to quickly see the first word if the rdma rx writes to ddr)*/
 static void DumpRemoteBuf(int max_words)
 {
     int i;
@@ -54,7 +53,7 @@ static void DumpRemoteBuf(int max_words)
 
     for (i = 0; i < max_words; i++) {
         addr = REMOTE_BUFFER_BASE + 4 * i;
-        w    = remote_buff[i];   // DCache kapalı → her zaman taze okuma
+        w    = remote_buff[i];   // DCache off → always fresh read
 
         xil_printf("%03d: [0x%08lx] = 0x%08lx\r\n",
                    i,
@@ -73,12 +72,12 @@ static int InitEth(int *FoundPhyAddr)
     u32 Options;
     int PhyAddr = -1;
 
-    xil_printf("\r\n=== InitEth() basladi ===\r\n");
+    xil_printf("\r\n=== InitEth() started ===\r\n");
 
     xil_printf("ETH-1: XAxiEthernet_LookupConfig (ID=%d)\r\n", ETH_DEV_ID);
     EthCfg = XAxiEthernet_LookupConfig(ETH_DEV_ID);
     if (!EthCfg) {
-        xil_printf("  [ERR] LookupConfig FAIL\r\n");
+        xil_printf("  [ERR] LookupConfig FAILED\r\n");
         return XST_FAILURE;
     }
     xil_printf("  BaseAddress = 0x%08lx\r\n",
@@ -88,27 +87,27 @@ static int InitEth(int *FoundPhyAddr)
     Status = XAxiEthernet_CfgInitialize(&EthInst, EthCfg,
                                         EthCfg->BaseAddress);
     if (Status != XST_SUCCESS) {
-        xil_printf("  [ERR] CfgInitialize FAIL (%d)\r\n", Status);
+        xil_printf("  [ERR] CfgInitialize FAILED (%d)\r\n", Status);
         return Status;
     }
 
     xil_printf("ETH-2.5: SetOperatingSpeed 1000 Mbps\r\n");
     Status = XAxiEthernet_SetOperatingSpeed(&EthInst, XAE_SPEED_1000_MBPS);
     if (Status != XST_SUCCESS)
-        xil_printf("  [WARN] SetOperatingSpeed FAIL (%d)\r\n", Status);
+        xil_printf("  [WARN] SetOperatingSpeed FAILED (%d)\r\n", Status);
 
     xil_printf("ETH-3: SetMacAddress\r\n");
     Status = XAxiEthernet_SetMacAddress(&EthInst, BoardMac);
     if (Status != XST_SUCCESS) {
-        xil_printf("  [ERR] SetMacAddress FAIL (%d)\r\n", Status);
+        xil_printf("  [ERR] SetMacAddress FAILED (%d)\r\n", Status);
         return Status;
     }
 
-    xil_printf("ETH-4: Options ayarla\r\n");
+    xil_printf("ETH-4: Set Options\r\n");
     Options = XAxiEthernet_GetOptions(&EthInst);
     xil_printf("  Default Options = 0x%08lx\r\n", (unsigned long)Options);
 
-    /* RX ve TX’i aç, FCS strip + flow control kullan */
+    /* Enable RX and TX, use FCS strip + flow control */
     Options |=  XAE_FLOW_CONTROL_OPTION
              |  XAE_TRANSMITTER_ENABLE_OPTION
              |  XAE_RECEIVER_ENABLE_OPTION
@@ -117,7 +116,7 @@ static int InitEth(int *FoundPhyAddr)
     XAxiEthernet_SetOptions(&EthInst, Options);
     XAxiEthernet_ClearOptions(&EthInst, ~Options);
 
-    xil_printf("  Yeni Options = 0x%08lx\r\n", (unsigned long)Options);
+    xil_printf("  New Options = 0x%08lx\r\n", (unsigned long)Options);
 
     /* PHY INIT */
     xil_printf("ETH-5: PHY init\r\n");
@@ -131,20 +130,20 @@ static int InitEth(int *FoundPhyAddr)
                    PhyAddr, (unsigned)Bmsr);
     }
 
-    xil_printf("ETH-6: PHY autoneg enable/restart\r\n");
+    xil_printf("ETH-6: Enable/restart PHY autonegotiation\r\n");
     {
         u16 Bmcr;
         XAxiEthernet_PhyRead(&EthInst, PhyAddr, PHY_REG_BMCR, &Bmcr);
-        xil_printf("  BMCR eski = 0x%04x\r\n", Bmcr);
+        xil_printf("  BMCR old = 0x%04x\r\n", Bmcr);
         Bmcr |= BMCR_AUTONEG_EN | BMCR_RESTART_AN;
         XAxiEthernet_PhyWrite(&EthInst, PhyAddr, PHY_REG_BMCR, Bmcr);
-        xil_printf("  BMCR yeni yazildi = 0x%04x\r\n", Bmcr);
+        xil_printf("  BMCR new written = 0x%04x\r\n", Bmcr);
     }
 
     xil_printf("ETH-7: XAxiEthernet_Start\r\n");
     XAxiEthernet_Start(&EthInst);
 
-    xil_printf("ETH-8: LINK bekleniyor...\r\n");
+    xil_printf("ETH-8: Waiting for LINK...\r\n");
     {
         int i;
         u16 Bmsr = 0;
@@ -158,7 +157,7 @@ static int InitEth(int *FoundPhyAddr)
             usleep(100000);
         }
         if (!(Bmsr & BMSR_LINK_STATUS))
-            xil_printf("  [WARN] Link DOWN, son BMSR = 0x%04x\r\n", Bmsr);
+            xil_printf("  [WARN] Link DOWN, last BMSR = 0x%04x\r\n", Bmsr);
     }
 
     *FoundPhyAddr = PhyAddr;
@@ -172,7 +171,7 @@ int main(void)
     int Status;
     int PhyAddr;
 
-    /* Cache ayarları: D-cache kapalı (DMA ile coherency derdi olmasın) */
+    /* Cache config: D-cache off */
     Xil_DCacheDisable();
     Xil_ICacheEnable();
 
@@ -188,18 +187,16 @@ int main(void)
     xil_printf("STEP 1: InitEth()\r\n");
     Status = InitEth(&PhyAddr);
     if (Status != XST_SUCCESS) {
-        xil_printf("[FATAL] InitEth FAIL (%d)\r\n", Status);
+        xil_printf("[FATAL] InitEth FAILED (%d)\r\n", Status);
         return XST_FAILURE;
     }
 
     xil_printf("MAIN: PHY addr = %d\r\n", PhyAddr);
-    xil_printf("MAIN: PC'den Scapy ile tek bir burst RDMA paketi gonder.\r\n");
-    xil_printf("      Ilk byte ile son byte arasindaki net hizi olcecegiz.\r\n");
-
-    xil_printf("\r\nMAIN: Olcum bitti, kart idle modda. Yeni deney icin resetle.\r\n");
+    xil_printf("MAIN: Send one burst RDMA packet.\r\n");
+    
 
     while (1) {
-        sleep(1);  // sonsuza kadar takilsin
+        sleep(1);  // loop for first word in memory
         DumpRemoteBuf(1);
     }
 
