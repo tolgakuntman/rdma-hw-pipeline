@@ -84,11 +84,11 @@ nav:
       - Markdown : extra.md
   - Team H:
     - Description : project/description.md
-  - Part 1: 
+  #- Part 1: 
   - Part 2: 
     - IP Encapsulator : 
       - Info : project/ip_encapsulator/ip_encapsulator_text.md
-  - Part 3:
-  - Part 4:
+  #- Part 3:
+  #- Part 4:
 
       
