@@ -1,4 +1,4 @@
-# AXIS RX → RDMA Block
+# AXIS RX_to_RDMA Block
 
 The RDMA RX Block is the final stage of the receive path. It converts raw AXI-Stream Ethernet frames coming from the MAC into structured RDMA packets that the rest of the system can consume. This block is identical in Part-1 standalone, Part-3 integrated RDMA, and all future versions — the logic never changes.
 
