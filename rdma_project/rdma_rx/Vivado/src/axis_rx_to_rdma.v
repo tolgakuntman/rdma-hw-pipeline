@@ -17,8 +17,8 @@ module axis_rx_to_bram #(
     // -------------------------------------------------
     // AXI-Stream RX STATUS (from axi_ethernet_0.m_axis_rxs)
     // According to ethernet ip datasheet:
-    //   tdata[15:0]  = status bits
-    //   tdata[31:16] = frame length in bytes
+    //   tdata[15:0]  = frame length in bytes
+    //   tdata[31:16] = VLAN tag / auxiliary fields
     //   tkeep        = 4'hF
     //   tlast        = 1 (single word)
     // -------------------------------------------------
