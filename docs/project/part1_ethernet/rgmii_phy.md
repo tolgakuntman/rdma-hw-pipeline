@@ -1310,7 +1310,7 @@ If you get `0xFFFF`:
 - PHY has no power
 - Something holding MDIO high-Z
 
-👉 **If PHY does not respond, STOP — nothing else will work.**
+**If PHY does not respond, STOP — nothing else will work.**
 
 ---
 
@@ -1334,9 +1334,9 @@ If **activity LED blinks but no RX packets reach PL**, proceed to the timing che
 
 ---
 
-# 8.3 RGMII Clock Debugging (This Fixes 90% of Failures)
+# 8.3 RGMII Clock Debugging 
 
-RGMII absolutely depends on **correct 125 MHz clock skew**.
+RGMII absolutely depends on **correct 125 MHz clock**.
 
 RGMII timing rule:
 
@@ -1353,8 +1353,7 @@ If delays are wrong or not applied, symptoms include:
 
 - RXC present but TX never accepted  
 - CRC errors / alignment errors  
-- MAC sees garbage frame length  
-- RXD capture unstable (sporadic valid signals)  
+- MAC sees garbage frame length   
 - Only works at 100 Mbps, not at 1000 Mbps  
 
 ## Check 1 — Is RXC toggling?
@@ -1410,7 +1409,6 @@ if (b2 & 0x0004)
 If link never becomes UP:
 
 - Switch port is locked to wrong mode (forced speed/duplex)
-- Cable is not CAT5e/CAT6
 - Autoneg disabled in BMCR
 - DONT FORCE SPEED in software — let PHY negotiate  
   (MAC speed is independent of PHY speed)
@@ -1456,7 +1454,7 @@ Fix:
 
 Even if RGMII is perfect, MAC may refuse RX due to misconfigurations.
 
-## Check 1 — Did you call SetOperatingSpeed *before* enabling TX/RX?
+## Check — Did you call SetOperatingSpeed *before* enabling TX/RX?
 
 Correct order:
 
@@ -1472,172 +1470,32 @@ Calling `SetOperatingSpeed()` after Start() leads to:
 - TX working but RX silent  
 - Invalid RGMII RX timing latched  
 
-## Check 2 — AXI-Stream Backpressure
-
-If your downstream module (BRAM, RDMA IP) stalls, AXI Ethernet will:
-
-- Hold `tvalid=0`
-- Drop packets or throttle reception
-- Reassert ready after some cycles but you may miss segments
-
-Watch these signals:
-
-- `m_axis_rxd_tvalid`
-- `m_axis_rxd_tready`
-- `m_axis_rxd_tlast`
-
-If `tready=0` too often → **YOUR MODULE is the problem**, not Ethernet.
-
----
-
-# 8.7 Debugging the Physical Layer with Loopbacks
-
-DP83867 supports built-in loopbacks:
-
-## **1. MDI Loopback**  
-Loopback at copper interface (external).  
-Useful for full cable test.
-
-## **2. Digital Loopback (internal)**  
-Loopback inside the PHY digital core.  
-Useful to isolate:
-
-- MAC ↔ PHY digital interface  
-- RGMII correctness  
-- Internal delays  
-- Strap configuration  
-
-Enable digital loopback via MDIO (vendor register):
-
-```c
-XAxiEthernet_PhyRead(&EthInst, PhyAddr, 0x0010, &val);   // example register
-val |= (1<<14);   // LOOPBACK_EN (depends on DP83867 datasheet)
-XAxiEthernet_PhyWrite(&EthInst, PhyAddr, 0x0010, val);
-```
-
-If loopback works → RGMII/MAC is good, external cable side is faulty.  
-If loopback fails → RGMII timing or strap config is wrong.
-
----
-
-# 8.8 Debugging Using Wireshark + Continuous TX on PL
-
-If TX path works but RX does not:
-
-- Enable pattern generator (eth_axis_patgen)
-- Capture on PC using Wireshark
-
-If packets appear in Wireshark:
-
-- TX path is correct  
-- PHY transmit is correct  
-
-If nothing returns on RX:
-
-- RX path is broken  
-- Likely RGMII RX skew/timing issue  
-
----
-
-# 8.9 Debugging Using ILA (Integrated Logic Analyzer)
-
-Add ILA probes on:
-
-- `m_axis_rxd_tvalid`
-- `m_axis_rxd_tdata[31:0]`
-- `m_axis_rxd_tkeep`
-- `m_axis_rxd_tlast`
-- `m_axis_rxc_tdata` (status channel)
-- `rgmii_rxc`
-- `rgmii_rxd[3:0]`
-
-Look for:
-
-## Pattern A — `tvalid` never becomes 1
-→ PHY RX not stable / MAC not receiving clock
-
-## Pattern B — Valid bursts but no TLAST
-→ Packet parse failure / cable error / CRC issues
-
-## Pattern C — Wrong nibble order
-→ Delay incorrect (TX or RX)
-
----
-
-# 8.10 Debugging CRC / Alignment Errors
-
-If MAC reports many errors:
-
-- Check that **RGMII delay is exactly one direction only**  
-  (MAC expects PHY to delay RXC; PHY expects MAC to delay TXC)
-
-DP83867 has registers for:
-
-- RX delay enable  
-- TX delay enable  
-- Skew tap adjustments  
-
-KR260 straps usually enable both internal delays.
-
-If mismatch:
-
-- CRC errors for every frame  
-- Only small packets work  
-- Dropouts at high rates  
-
----
-
-# 8.11 The Ultimate Debug Checklist
-
-Tick through these one by one:
+# 8.7 The Debug Checklist
 
 ### **PHY Layer**
-- [ ] MDIO reads correct PHY ID  
-- [ ] BMSR link-up bit = 1  
-- [ ] Strap pins → RGMII mode  
-- [ ] RXC toggling at 125 MHz  
-- [ ] Cable OK / Link LED ON  
+- MDIO reads correct PHY ID  
+- BMSR link-up bit = 1  
+- Strap pins → RGMII mode  
+- RXC toggling at 125 MHz  
+- Cable OK / Link LED ON  
 
 ### **Timing**
-- [ ] TXC and RXC have internal delay enabled  
-- [ ] No excessive skew on board  
-- [ ] MAC speed set to 1000 Mbps  
+- TXC and RXC have internal delay enabled    
+- MAC speed set to 1000 Mbps  
 
 ### **MAC Layer**
-- [ ] XAxiEthernet_Start() called  
-- [ ] Options set BEFORE Start  
-- [ ] MDIO init BEFORE autoneg wait  
+- XAxiEthernet_Start() called  
+- Options set BEFORE Start  
+- MDIO init BEFORE autoneg wait  
 
 ### **AXI-Stream Layer**
-- [ ] RX path has no backpressure  
-- [ ] BRAM/RDMA module accepts beats  
-- [ ] No dropped beats during bursts  
+- BRAM/RDMA module accepts beats  
+- No dropped beats during bursts  
 
 ### **Functional**
-- [ ] Ping works  
-- [ ] Wireshark sees frames  
-- [ ] Pattern generator TX verified  
+- Ping works  
+- Wireshark sees frames  
+- Pattern generator TX verified  
 
 If all check out → RGMII is GOOD.
 
----
-
-9. Summary
-
-In the KR260 Part-1 design:
-
-The AXI 1G/2.5G Ethernet Subsystem is configured in RGMII mode and connects directly to a TI DP83867 PHY on the carrier card.
-
-A 25 MHz reference clock and board strap pins configure the PHY into the correct default (RGMII + desired delays and address).
-
-The MAC controls the PHY via MDIO and uses standard IEEE registers BMCR (0) and BMSR (1) to:
-
-Enable and restart autonegotiation.
-
-Poll link status.
-
-The MAC still requires 125 MHz clocks for RGMII operation. Line speed negotiation is handled inside the PHY; we statically configure the MAC for 1 Gbps.
-
-Correct RGMII operation is a prerequisite for the rest of the RDMA pipeline; once the PHY link is up and RGMII is stable, RX data is passed into the custom AXI-Stream buffering and RDMA decapsulation logic described in the following sections.
-
-This chapter provides the hardware-level context needed to understand how Ethernet frames arrive from the outside world and enter the FPGA fabric in our RDMA design.
