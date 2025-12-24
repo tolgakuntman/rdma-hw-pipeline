@@ -16,14 +16,10 @@ AXI Ethernet Subsystem (MAC)
      ↓ m_axis_rxs (status)
 AXIS_RX_TO_RDMA  ←––––––– this block
      ↓ structured RDMA packet
-RDMA Core (QPN, opcode, offsets, payload)
+Decapsulator
 ```
 
-The RDMA RX block has one job:
-
-> Convert “Ethernet frames on AXI-Stream” → “Parsed RDMA packet”.
-
-It hides all Ethernet, IP, and UDP details from the RDMA core.
+The RDMA RX block is a pass through block that takes the frames from MAC and passes the packets to decapsulator. For tx side, this block triggers txc (tx control line) in a certain way to start sending packets to the MAC, again it passes packets from encapsulator through the MAC.
 
 ---
 
@@ -61,37 +57,14 @@ We latch this after the frame ends.
 
 ---
 
-## 3. Internal Overview of the RDMA RX Block
-
-The unified RDMA RX logic has three stages.
-
----
-
-### 3.1 Stage A — Frame Capture Into a Small Buffer
-
-Unlike the earlier Part-1 BRAM design, the final RDMA RX version uses a **small internal FIFO/buffer**, not a full BRAM frame store.
-
-- As long as `tvalid && tready`, every 32-bit word is pushed into the buffer.  
-- On `tlast`, the frame is fully captured and ready for parsing.
-
-This FIFO decouples MAC timing from header parsing.
-
-**Backpressure behavior**
-
-- `tready` remains HIGH unless FIFO is full  
-- If FIFO is full → we assert backpressure  
-- MAC automatically stalls (AXI-Stream guarantees lossless flow)
-
----
-
-## 4. Stage B — Header Parsing  
+## 3. Stage B — Header Parsing  
 *(Ethernet → IP → UDP → RDMA)*
 
 After a full frame is buffered, parsing begins.
 
 ---
 
-### 4.1 Ethernet Header
+### 3.1 Ethernet Header
 
 We extract:
 
@@ -107,7 +80,7 @@ EtherType ≠ 0x0800
 
 ---
 
-### 4.2 IPv4 Header
+### 3.2 IPv4 Header
 
 We check:
 
@@ -121,7 +94,7 @@ If any mismatch occurs:
 
 ---
 
-### 4.3 UDP Header
+### 3.3 UDP Header
 
 We validate:
 
@@ -132,7 +105,7 @@ We validate:
 
 ---
 
-### 4.4 RDMA Header (Custom Protocol)
+### 3.4 RDMA Header (Custom Protocol)
 
 Our custom RDMA header includes:
 
@@ -149,7 +122,7 @@ These become **RDMA packet metadata** delivered to the RDMA Core.
 
 ---
 
-## 5. Stage C — Delivering RDMA Payload
+## 4. Stage C — Delivering RDMA Payload
 
 Once RDMA header is validated:
 
@@ -167,7 +140,7 @@ Then:
 
 ---
 
-## 6. Why This Block Is Identical in All Versions
+## 5. Why This Block Is Identical in All Versions
 
 This block:
 
@@ -191,7 +164,7 @@ Since these are identical across:
 
 ---
 
-## 7. Summary
+## 6. Summary
 
 The AXIS RX → RDMA Block performs:
 
