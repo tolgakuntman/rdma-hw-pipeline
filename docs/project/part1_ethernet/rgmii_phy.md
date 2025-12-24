@@ -105,95 +105,190 @@ On the KR260, the PHY is strapped for **RGMII mode** (RGMII enable bit set / SGM
 
 ---
 
-## 4. PHY Management via MDIO
+4. PHY Management via MDIO
 
-### 4.1 MDIO Interface
+The DP83867 Gigabit Ethernet PHY on the KR260 is controlled through the MDIO management interface.
+All MDIO timing, protocol formatting, and communication is handled entirely inside the AXI 1G/2.5G Ethernet Subsystem, so software does not bit-bang the MDIO line manually.
 
-The AXI Ethernet Subsystem includes a built-in **Media Independent Interface Management (MIIM)** block. When we call:
+This section explains:
 
-```c
+How MDIO transactions actually work
+
+How the AXI Ethernet MIIM block handles reads/writes
+
+Which registers we use (BMCR/BMSR)
+
+How autonegotiation and link polling fit into the bring-up sequence
+
+4.1 MDIO Interface
+MIIM Hardware (Management Logic)
+
+The AXI Ethernet Subsystem includes a dedicated MIIM (Media Independent Interface Management) block.
+This hardware engine automatically performs:
+
+MDC clock generation (≤ 2.5 MHz per IEEE 802.3)
+
+MDIO frame formatting (start, opcode, PHY addr, reg addr, turnaround, data)
+
+MDIO read/write transactions
+
+Returning the received value to software
+
+Because of this, software never manually toggles MDC/MDIO pins.
+We simply call the driver functions, and the MAC does all the low-level work.
+
+Vitis Access Functions
+
+To read or write a PHY register, software uses exactly these functions:
+
 XAxiEthernet_PhyRead(&EthInst, PhyAddr, RegNum, &Value);
 XAxiEthernet_PhyWrite(&EthInst, PhyAddr, RegNum, Value);
-```
 
-the core:
 
-Asserts MDC and drives MDIO according to the IEEE 802.3 MDIO frame format.
+When these are called, the MIIM core:
 
-Sends an MDIO read or write transaction to the external PHY.
+Generates MDC
 
-Returns the register value to software.
+Drives or samples MDIO
 
-We do not bit-bang MDIO from software; all of this is handled by the MAC IP.
+Executes the required IEEE 802.3 frame
 
-NOTE (screenshot): Add a small diagram from PG138 showing the MIIM block and MDIO pins.
+Waits for the transaction to complete
 
-4.2 Basic Registers: BMCR and BMSR
+Returns the result to software
 
-The two most important MDIO registers we use are:
+NOTE (screenshot):
+Insert a cropped diagram from PG138 showing the MIIM block feeding MDC/MDIO.
+This visually explains that the AXI Ethernet IP — not the CPU — is responsible for MDIO timing.
 
-Basic Mode Control Register (BMCR, address 0)
+4.2 Essential MDIO Registers: BMCR and BMSR
 
-Basic Mode Status Register (BMSR, address 1)
+All IEEE-compliant PHYs must implement Basic Mode Control Register (BMCR) and Basic Mode Status Register (BMSR).
+These two registers alone provide nearly everything required for link bring-up.
 
-We access them with:
-#define PHY_REG_BMCR   0   // Basic Mode Control Register
-#define PHY_REG_BMSR   1   // Basic Mode Status Register
+Register Definitions
+#define PHY_REG_BMCR      0     // Basic Mode Control Register
+#define PHY_REG_BMSR      1     // Basic Mode Status Register
 
-#define BMCR_AUTONEG_EN  0x1000  // Autonegotiation Enable
-#define BMCR_RESTART_AN  0x0200  // Restart Autonegotiation
+#define BMCR_AUTONEG_EN   0x1000   // Enable Autonegotiation
+#define BMCR_RESTART_AN   0x0200   // Restart Autonegotiation
 
-#define BMSR_LINK_STATUS 0x0004  // Link Status bit (1 = link up)
+#define BMSR_LINK_STATUS  0x0004   // 1 = Link Up
 
-BMCR (Reg 0)
+4.3 BMCR — Basic Mode Control Register (Reg 0)
 
-Relevant bits for us:
+BMCR controls the fundamental PHY behavior:
 
-Bit 15: Reset
+Bit	Name	Description
+15	Reset	Forces a soft reset of the PHY
+13	Speed Select (MSB)	1 Gbps selection (implementation-dependent)
+12	Autonegotiation Enable	Allows PHY to negotiate speed/duplex
+9	Restart Autonegotiation	Triggers a new autoneg cycle
+8	Duplex Mode	1 = Full Duplex
+Initialization Example
 
-Bit 13: Speed select MSB (1000 vs 10/100, depending on device)
-
-Bit 12: Autonegotiation enable (BMCR_AUTONEG_EN)
-
-Bit 8 : Duplex mode
-
-Bit 9 : Restart autonegotiation (BMCR_RESTART_AN)
-
-In our init code:
+During bring-up, we always enable autonegotiation and force a restart:
 
 u16 Bmcr;
+
 XAxiEthernet_PhyRead(&EthInst, PhyAddr, PHY_REG_BMCR, &Bmcr);
+
 Bmcr |= BMCR_AUTONEG_EN | BMCR_RESTART_AN;
+
 XAxiEthernet_PhyWrite(&EthInst, PhyAddr, PHY_REG_BMCR, Bmcr);
 
 
-This means:
+Meaning:
 
-Ensure autoneg is enabled.
+Autonegotiation is guaranteed to be active
 
-Explicitly trigger a Restart Autonegotiation so that the PHY re-negotiates speed/duplex with the link partner after reset.
+PHY immediately renegotiates speed/duplex with link partner
 
-BMSR (Reg 1)
+Prevents mismatch issues after reset or cable reconnects
 
-BMSR_LINK_STATUS = 1 indicates that the PHY reports link up.
+This is standard practice for any RGMII PHY bring-up.
 
-In our code we poll this bit:
+4.4 BMSR — Basic Mode Status Register (Reg 1)
+
+BMSR provides PHY link state and basic capability information.
+
+The key bit for bring-up is:
+
+Bit	Name	Description
+2	Link Status	1 = Link Up, 0 = Link Down
+Why Do We Double-Read BMSR?
+
+Many PHYs implement latched link bits:
+The first read clears the latch, and only the second read returns the real-time link status.
+
+That is why the polling code looks like this:
 
 u16 Bmsr;
-for (i = 0; i < 100; i++) {
+
+for (int i = 0; i < 100; i++) {
+
     XAxiEthernet_PhyRead(&EthInst, PhyAddr, PHY_REG_BMSR, &Bmsr);
-    XAxiEthernet_PhyRead(&EthInst, PhyAddr, PHY_REG_BMSR, &Bmsr); // read twice as per spec
+    XAxiEthernet_PhyRead(&EthInst, PhyAddr, PHY_REG_BMSR, &Bmsr);  // real current value
+
     if (Bmsr & BMSR_LINK_STATUS) {
-        xil_printf("  LINK UP, BMSR = 0x%04x\r\n", Bmsr);
+        xil_printf("LINK UP, BMSR = 0x%04x\r\n", Bmsr);
         break;
     }
-    usleep(100000);
+
+    usleep(100000);  // 100 ms
 }
 
 
-Some PHYs latch the link bit and require two reads to get the current value, hence the double read.
+This provides up to 10 seconds for the cable and remote device to negotiate a link.
 
-If after the timeout the link status is still 0, we print a warning.
+If we reach the timeout without LINK_STATUS becoming 1, the code prints a warning.
+
+4.5 Why BMCR/BMSR Matter So Much
+
+These two registers are the foundation of all Ethernet PHY bring-up:
+
+Autonegotiation control lives in BMCR
+
+Real-time link state comes from BMSR
+
+Any mismatch / negotiation issue shows up in these registers
+
+Debugging RGMII timing problems almost always starts by checking BMSR
+
+After reset, BMCR_RESTART_AN is mandatory for stable links
+
+Even though DP83867 has many extended registers, almost all essential behavior depends on BMCR/BMSR.
+
+4.6 MAC Speed vs PHY Autonegotiation
+
+A critical point:
+
+The PHY negotiates speed with the link partner, but the MAC does NOT auto-update its speed.
+
+AXI Ethernet does not adapt to PHY speed automatically.
+
+Therefore, the MAC must be explicitly configured:
+
+XAxiEthernet_SetOperatingSpeed(&EthInst, XAE_SPEED_1000_MBPS);
+
+
+In our project we always forced the MAC to 1 Gbps mode, because:
+
+The DP83867 and KR260 are fully gigabit-capable
+
+Our test switches/PCs are all gigabit
+
+The RGMII interface requires 125 MHz internally regardless of actual line rate
+
+If someone wanted to support 10/100 as well, they would:
+
+Read vendor-specific PHY registers to learn the negotiated speed
+
+Call XAxiEthernet_SetOperatingSpeed() accordingly
+
+Potentially adjust MAC flow-control settings
+
+This was not needed in our system.
 
 5. RGMII Configuration in DP83867
 
