@@ -11,7 +11,7 @@ The focus is on:
 
 ---
 
-## 1. KR260 Ethernet Hardware Overview
+# 1. KR260 Ethernet Hardware Overview
 
 The KR260 carrier card integrates two PL-based Gigabit Ethernet interfaces implemented through **RGMII** and connected to two discrete PHY devices. These interfaces form the physical entry point for all Ethernet frames used in our PL-side data pipeline.
 
@@ -19,7 +19,7 @@ This section summarizes the hardware components involved and how Ethernet signal
 
 ---
 
-### 1.1 PL-Side Ethernet Ports
+## 1.1 PL-Side Ethernet Ports
 
 According to the KR260 Carrier Card User Guide (UG1092), the PL exposes two RGMII-based Ethernet ports:
 
@@ -33,7 +33,7 @@ Each port is implemented using a dedicated **TI DP83867** Gigabit Ethernet PHY.
 
 ---
 
-### 1.2 Electrical Path: RJ45 → PHY → FPGA
+## 1.2 Electrical Path: RJ45 → PHY → FPGA
 
 Each Ethernet interface consists of the following hardware path:
 
@@ -66,7 +66,7 @@ Each Ethernet interface consists of the following hardware path:
 
 ---
 
-### 1.3 Relevant PHY Hardware Features
+## 1.3 Relevant PHY Hardware Features
 
 The TI DP83867 device provides several features essential to KR260 RGMII operation:
 
@@ -89,7 +89,7 @@ On the KR260, straps configure the PHY for:
 
 ---
 
-### 1.4 Block Design Integration
+## 1.4 Block Design Integration
 
 Inside the Vivado block design:
 
