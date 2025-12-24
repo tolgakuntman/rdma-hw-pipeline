@@ -11,7 +11,7 @@ The goal is to provide a **fully deterministic, loss-free Ethernet front-end** t
 
 Part-1 covers the following elements in full detail:
 
-### ** RGMII PHY Bring-Up**
+###  RGMII PHY Bring-Up
 - MDIO access through the AXI Ethernet Subsystem
 - BMCR/BMSR interpretation  
 - Auto-negotiation flow  
@@ -19,7 +19,7 @@ Part-1 covers the following elements in full detail:
 - Reset sequencing and timing  
 - 125 MHz clock requirements for RGMII regardless of link speed (10/100/1000 Mbps)
 
-### ** AXI Ethernet Subsystem (MAC) Configuration**
+### AXI Ethernet Subsystem (MAC) Configuration
 - TX/RX AXI-Stream interface behavior  
 - Status channel decoding  
 - FCS handling (strip/keep)  
@@ -27,7 +27,7 @@ Part-1 covers the following elements in full detail:
 - MAC address configuration  
 - Clocking mode (GTX clock vs recovered clock)  
 
-### ** Full TX Pipeline (Stand-Alone Test Mode)**
+### Full TX Pipeline (Stand-Alone Test Mode)
 A dedicated AXI-Stream pattern generator transmits known Ethernet frames to validate:
 - RGMII routing  
 - MAC TX behavior  
@@ -37,7 +37,7 @@ A dedicated AXI-Stream pattern generator transmits known Ethernet frames to vali
 
 This TX path was crucial for verifying physical connectivity and MAC/PHY configuration before integrating RDMA logic.
 
-### ** Full RX Pipeline (Integrated With RDMA)**
+### Full RX Pipeline (Integrated With RDMA)
 The RX pipeline implemented in Part-1 forms the front-end of the final RDMA receive architecture:
 RGMII → Ethernet PHY → AXI Ethernet MAC (RX)→ s_axis_rxd + s_axis_rxs → axis_rx_to_rdma → RDMA decapsulation logic 
 
