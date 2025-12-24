@@ -26,7 +26,7 @@ On the KR260 carrier card we rely on two main clock sources:
    - Exported into the PL through the **PS block** (`zynq_ultra_ps_e`).  
    - Used as the **AXI-Lite and “system” clock** for all ip blocks.
 
-![Clocking Wizard](images/clocking_wizard.png)
+![Clocking Wizard](part1_images/clocking_wizard.png)
 
 
 Since AXI 1G/2.5G Ethernet ip block needs an exact 125 Mhz input clock for gtx_clk, this clock in the PL are derived from the 25 MHz board clock input via the Clocking Wizard.
