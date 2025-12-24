@@ -26,14 +26,9 @@ On the KR260 carrier card we rely on two main clock sources:
    - Exported into the PL through the **PS block** (`zynq_ultra_ps_e`).  
    - Used as the **AXI-Lite and “system” clock** for all ip blocks.
 
-![Clocking Wizard](part1_images/clocking_wizard.png)
-
-
-Since AXI 1G/2.5G Ethernet ip block needs an exact 125 Mhz input clock for gtx_clk, this clock in the PL are derived from the 25 MHz board clock input via the Clocking Wizard.
-
 ---
 
-## 2. PL Clock Architecture in Part 1
+## 2. PL Clock Architecture
 
 At the heart of the PL clocking is a **Clocking Wizard IP** with:
 
@@ -41,7 +36,9 @@ At the heart of the PL clocking is a **Clocking Wizard IP** with:
 |------------------------|-----------------------------------------|
 | `clk_in1` (25 MHz)     | Board reference clock                   |
 | `clk_out1` (125 MHz)   | Ethernet data-plane / RGMII clock       |
-| `clk_out2` (200 MHz)   | IDELAY reference clock                  |
+| `clk_out2` (300 MHz)   | IDELAY reference clock (ref_clk)                  |
+
+![Clocking Wizard](images/clocking_wizard.png)
 
 These outputs feed three separate clock domains:
 
@@ -51,7 +48,7 @@ These outputs feed three separate clock domains:
 
 Each domain has its **own `proc_sys_reset`** to generate clean, synchronous resets.
 
-> **NOTE (diagram):** Add a small timing / block diagram with three branches labelled “100 / 125 / 200 MHz + proc_sys_reset”.
+> **NOTE (diagram):** Add a small timing / block diagram with three branches labelled “100 / 125 / 300 MHz + proc_sys_reset”.
 
 ---
 
@@ -59,13 +56,19 @@ Each domain has its **own `proc_sys_reset`** to generate clean, synchronous rese
 
 The 100 MHz domain is driven directly from **`pl_clk0`** of the PS.
 
+**The axis_clk signal should be connected to the same clock source as the AXI4-Stream interface.**
+
 Components clocked at 100 MHz:
 
 - `ps8_0_axi_periph` (AXI interconnect for control)
 - AXI-Lite interfaces of:
   - `axi_ethernet_0` (MAC control/status)
-  - `axi_bram_ctrl_0` (if used for configuration)
+  - `s_axi_lite_clk`
 - `proc_sys_reset_100M`
+- `axis_clk` of the ethernet ip block
+Here is an explanation for the axis_clk clock from the datasheet:
+
+![axis_clk](images/clocking_wizard.png)
 
 We deliberately keep:
 
@@ -78,7 +81,7 @@ This simplifies timing closure and ensures that **Vitis drivers and AXI-Lite acc
 
 ## 4. 125 MHz Ethernet Data-Plane Domain
 
-The **125 MHz clock** (`clk_out1` from the Clocking Wizard) is the **core data-plane clock** for Ethernet:
+The **125 MHz clock** (`clk_out1` from the Clocking Wizard) is the **core data-plane clock** for Ethernet ip block.
 
 Clocked at 125 MHz:
 
@@ -93,12 +96,14 @@ Clocked at 125 MHz:
 
 Reset for this domain is produced by **`proc_sys_reset_125M`**, whose `slowest_sync_clk` is the 125 MHz clock and whose `ext_reset_in` is driven from the PS reset output.
 
-### 4.1 Why 125 MHz is Mandatory
+### 4.1 Why 125 MHz is Mandatory for gtx_clk of ethernet ip block
 
 The AXI 1G/2.5G Ethernet Subsystem **requires** a 125 MHz clock when configured for **RGMII**:
 
 - At **1 Gbps**, RGMII uses 125 MHz DDR (Rising = low nibble, Falling = high nibble).
 - At **100 / 10 Mbps**, the PHY still uses 125 MHz on the RGMII side and internally rate-adapts the line speed.
+
+Here is the explanation of gtx_clk of the ethernet ip block from the datasheet:**The 125 MHz clock used in all GMII, RGMII, and SGMII configurations to control the PHY reset requirements. Also, it is a 125 MHz input clock on global clock routing used to derive the other transmit clocks for all GMII and RGMII PHY modes. This clock is also used when Ethernet Statistics are enabled with all supported device families.**
 
 We initially found it confusing that:
 
@@ -131,30 +136,21 @@ This design choice is important because:
 
 ---
 
-## 5. 200 MHz IDELAY / I/O Calibration Domain
+## 5. 300 MHz IDELAY / I/O Calibration Domain
 
 RGMII I/O timing depends on properly calibrated **IDELAY / ODELAY** elements in the I/O banks.  
-On UltraScale+ devices, these are controlled by a **`util_idelay_ctrl`** block that requires a **200 MHz reference clock**.
+On UltraScale+ devices, these are controlled by a **`util_idelay_ctrl`** block that requires a **300 MHz reference clock**.
 
 In our design:
 
-- `clk_out2` from the Clocking Wizard is set to **200 MHz**.
+- `clk_out2` from the Clocking Wizard is set to **300 MHz**.
 - This clock drives:
-  - `util_idelay_ctrl_0` (or the IDelay controller embedded in the AXI Ethernet IP)
-  - `proc_sys_reset_200M`
+  - `ref_clk` pin from the ethernet ip block
 
-Why 200 MHz?
+Why 300 MHz?
+Here is the explanation for the ref_clk pin of the ethernet ip block from the datasheet:
+**This is a stable global clock used by signal delay primitives and transceivers in those respective modes. For UltraScale/UltraScale+/Versalarchitecture, the frequency range is 300-1333 MHz for GMII and RGMII modes.**
 
-- AMD documentation recommends **200 MHz** as the most robust frequency for IDELAY calibration.
-- Vivado issues warnings if the IDELAY controller is not fed with the correct frequency, or if the clock is missing.
-
-> **NOTE (screenshot):** Add screenshot of Clocking Wizard with `clk_out2 = 200 MHz`, and the IDELAY controller schematic view.
-
-Without a valid 200 MHz clock:
-
-- RGMII timing is undefined.  
-- You may see link-up but corrupted frames / random CRC errors.  
-- Vivado timing report often shows “IDELAYCTRL not calibrated” warnings.
 
 ---
 
@@ -166,7 +162,7 @@ We use **three `proc_sys_reset` instances**, one per clock domain:
 |-----------------------|----------------|--------------------------------------------------------------|
 | `proc_sys_reset_100M` | 100 MHz (pl_clk0) | AXI-Lite interconnect, MAC AXI-Lite port, control logic |
 | `proc_sys_reset_125M` | 125 MHz        | AXI Ethernet data-plane, custom TX/RX modules               |
-| `proc_sys_reset_200M` | 200 MHz        | IDELAY controller / 200 MHz peripherals                      |
+| `proc_sys_reset_200M` | 300 MHz        | IDELAY controller / 300 MHz peripherals                      |
 
 Common inputs:
 
@@ -179,7 +175,7 @@ Common inputs:
 - If we used a single reset block, the 200 MHz domain might de-assert reset before the MMCM has locked, leading to IDELAY mis-calibration.
 - With independent blocks:
   - The 125 MHz Ethernet logic starts only after `clk_out1` is locked.
-  - The 200 MHz IDELAY logic starts only after `clk_out2` is locked.
+  - The 300 MHz IDELAY logic starts only after `clk_out2` is locked.
 
 > **NOTE (screenshot):** Add a zoomed-in screenshot showing the three `proc_sys_reset` blocks and their clock connections.
 
@@ -220,20 +216,6 @@ However, there are a few *expected* (non-fatal) messages:
 - IDELAY / MMCM related notes (e.g. “IDELAYCTRL frequency assumed 200 MHz”).  
 - RGMII I/O timing info messages referencing external delays.
 
-Key checks before trusting the bitstream:
-
-1. **`Report Timing Summary` → Worst Negative Slack (WNS) ≥ 0**  
-   - Especially for the **125 MHz** and **200 MHz** clocks.
-
-2. **Check for “IDELAYCTRL not calibrated” warnings**  
-   - If present, verify `util_idelay_ctrl` really sees the 200 MHz clock.
-
-3. **External I/O timing**  
-   - For KR260, the board part already adds correct constraints for RGMII pins.  
-   - We do not need custom XDC constraints for RGMII in Part 1.
-
-If WNS is slightly negative on the 200 MHz domain but everything else is green, carefully analyze which paths are failing; in our design the hot path is entirely inside the Ethernet + IDELAY; typically it still passes at 200 MHz with some margin.
-
 ---
 
 ## 9. Practical Debugging Tips Related to Clocks
@@ -243,17 +225,13 @@ When something goes wrong on the KR260 Ethernet link, check clocks first:
 1. **Is `ref_clk` really 125 MHz?**  
    - Confirm Clocking Wizard output frequency.  
    - Probe on an ILA or scope if exported.
-
-2. **Are all three `proc_sys_reset` outputs de-asserted?**  
-   - If 200 MHz reset stays asserted, IDELAY will never calibrate.
-
-3. **Is `pl_clk0` set to 100 MHz in the PS configuration?**  
+2. **Is `pl_clk0` set to 100 MHz in the PS configuration?**  
    - AXI-Lite transactions may misbehave if the actual clock differs from what drivers expect.
 
-4. **Do pattern-generator packets look correct in Wireshark but custom RX misses beats?**  
+3. **Do pattern-generator packets look correct in Wireshark but custom RX misses beats?**  
    - If yes, clocking is probably fine and the problem is handshake / logic, not timing.
 
-5. **Random CRC errors only at 1 Gbps, but 100 Mbps seems OK?**  
+4. **Random CRC errors only at 1 Gbps, but 100 Mbps seems OK?**  
    - Suspect **RGMII timing / IDELAY / ref_clk** rather than protocol bugs.
 
 ---
