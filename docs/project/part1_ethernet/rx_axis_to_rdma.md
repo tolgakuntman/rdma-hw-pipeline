@@ -73,15 +73,9 @@ The Normal Transmit AXI4-Stream Control frame always contains six 32-bit control
 Subsystem.
 See the following figures for the Transmit AXI4-Stream Control Word definition.
 
-![tx_words](tx_words.png)
-
----
-
-![tx_words1](tx_word0-1.png)
-
----
-
-![tx_words2](tx_word2-3.png)
+![tx_words](images/tx_words.png)
+![tx_words1](images/tx_word0-1.png)
+![tx_words2](images/tx_word2-3.png)
 
 ---
 
