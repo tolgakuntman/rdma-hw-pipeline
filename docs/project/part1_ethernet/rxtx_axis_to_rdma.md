@@ -10,7 +10,7 @@ RX_to_RDMA block should use the txd, txc, rxd, and rxs connections correctly to 
 
 ## 1. Role in the System
 
-End-to-end pipeline (final design):
+End-to-end pipeline for RDMA Rx:
 
 ```
 PHY (DP83867)
@@ -19,8 +19,20 @@ AXI Ethernet Subsystem (MAC)
      ↓ m_axis_rxd (data)
      ↓ m_axis_rxs (status)
 AXIS_RX_TO_RDMA  ←––––––– this block
-     ↓ structured RDMA packet
+     ↓ 
 Decapsulator
+```
+End-to-end pipeline for RDMA Tx:
+
+```
+PHY (DP83867)
+     ↑ RGMII
+AXI Ethernet Subsystem (MAC)
+     ↑ s_axis_txd (data)
+     ↑ s_axis_txc (control)
+AXIS_TX_FROM_RDMA  ←––––––– this block
+     ↑
+Encapsulator
 ```
 
 ---
