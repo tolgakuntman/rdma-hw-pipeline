@@ -6,11 +6,9 @@ After PHY and MAC communication with RGMII we need a custom designed ip block to
 
 RX_to_RDMA block should use the txd, txc, rxd, and rxs connections correctly to have a succesfull ethernet connection. After reading the datasheet of ethernet ip block we can learn how to drive the rxd data stream and rxs status stream for rx side, and txd data stream and txc control stream for the tx side for the MAC. This will be discussed in following chapters in detail.
 
-Here is a separate picture of both rx side and tx side AXIS_RX/TX_to_RDMA custom ip block that I will explain in the following sections.
+Here is a picture of rx side AXIS_RX_to_RDMA custom ip block that I will explain in the following sections.
 
 ![custom_eth_ip](images/rx_to_rdma_ip.png)
-
-![custom_eth_ip](images/tx_to_rdma_ip.png)
 
 ---
 
@@ -153,7 +151,7 @@ In our RDMA design we did not use any checksum so my custom tx ip sets `default:
 
 ### 4 Tx/Rx Custom IP - Encapsulator/Decapsulator Connection
 
-I have talked about MAC side connections so far and I need to mention shortly how we connect the custom ip block to decapsulator/encapsulator block. We use axi stream connection between the two and we have rdma_length info line that we take from rxs. I talked about this before but in our final design we dont use it so the connection is just the axi stream.
+I have talked about MAC side connections so far and I need to mention shortly how we connect the custom ip block to decapsulator/encapsulator block. We use axi stream connection between the two and we have frame_len_bytes line for byte length info  that we take from rxs. I already talked about this and in our final design we dont use it so the connection is just the axi stream.
 
 ![connection](images/rx_to_rdma_decap.png)
 
