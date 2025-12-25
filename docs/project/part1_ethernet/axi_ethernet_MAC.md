@@ -8,6 +8,18 @@ in the KR260 + DP83867 PHY design.
 ---
 
 # 1. Overview
+**Information about the Ethernet IP Block Used**
+The AMD AXI Ethernet Subsystem implements a tri-mode (10/100/1000 Mb/s) Ethernet MAC
+or a 10/100 Mb/s Ethernet MAC. This core supports the use of MII, GMII, SGMII, RGMII, and
+1000BASE-X interfaces to connect a media access control (MAC) to a physical-side interface
+(PHY) chip. It also provides an on-chip PHY for 1G/2.5G SGMII and 1000/2500 BASE-X modes.
+The MDIO interface is used to access PHY Management registers. This subsystem optionally
+enables TCP/UDP full checksum offload, VLAN stripping, tagging, translation, and extended
+filtering for multicast frames features.
+
+
+This subsystem provides additional functionality and ease of use related to Ethernet. Based on
+the configuration, this subsystem creates interface ports, instantiates required infrastructure cores, and connects these cores.
 
 The AXI Ethernet Subsystem is logically divided into three layers:
 
@@ -27,8 +39,10 @@ AXIS_RX_TO_RDMA (Custom IP)
 ```
 
 ---
+# 2.VERY IMPORTANT LICENSE INFORMATION ABOUT THIS IP BLOCK
 
-# 2. AXI4-Lite Interface (MAC Register Access)
+
+# 3. AXI4-Lite Interface (MAC Register Access)
 
 ### Ports
 
@@ -54,7 +68,7 @@ AXIS_RX_TO_RDMA (Custom IP)
 
 ---
 
-# 3. AXI-Stream TX Path (Custom IP → MAC)
+# 4. AXI-Stream TX Path (Custom IP → MAC)
 
 TX requires **two separate AXI4-Stream channels**:
 
@@ -68,7 +82,7 @@ The MAC enforces a strict ordering rule:
 
 ---
 
-## 3.1 `s_axis_txc` — TX Control Stream
+## 4.1 `s_axis_txc` — TX Control Stream
 
 Exactly **6 words** per Ethernet frame (Normal Transmit Mode).
 
@@ -95,7 +109,7 @@ This selects **Normal Transmit AXI4-Stream Frame**, not “Receive-Status Transm
 
 ---
 
-## 3.2 `s_axis_txd` — TX Data Stream
+## 4.2 `s_axis_txd` — TX Data Stream
 
 Actual Ethernet bytes are streamed here.
 
@@ -121,7 +135,7 @@ tdata[31:24] = byte3
 
 ---
 
-## 3.3 Full TX Timing (Control → Data)
+## 4.3 Full TX Timing (Control → Data)
 
 TXC Stage:
 Word0 Word1 Word2 Word3 Word4 Word5 (tlast=1)
@@ -139,7 +153,7 @@ If TXC does not finish cleanly:
 
 ---
 
-# 4. AXI-Stream RX Path (MAC → Custom IP)
+# 5. AXI-Stream RX Path (MAC → Custom IP)
 
 MAC sends **two streams** back-to-back:
 
@@ -148,7 +162,7 @@ MAC sends **two streams** back-to-back:
 
 ---
 
-## 4.1 `m_axis_rxd` — RX Data Stream
+## 5.1 `m_axis_rxd` — RX Data Stream
 
 | Signal | Meaning |
 |--------|---------|
@@ -162,7 +176,7 @@ MAC guarantees each packet arrives as **one contiguous AXI burst**.
 
 ---
 
-## 4.2 `m_axis_rxs` — RX Status Stream
+## 5.2 `m_axis_rxs` — RX Status Stream
 
 Each RX packet is followed by **6 words** of status information.
 
@@ -181,7 +195,7 @@ Your custom RDMA RX uses only **length**, which is correct.
 
 ---
 
-# 5. Reset Signals
+# 6. Reset Signals
 
 | Port | Purpose |
 |------|----------|
@@ -192,7 +206,7 @@ Your custom RDMA RX uses only **length**, which is correct.
 
 ---
 
-# 6. Clocks
+# 7. Clocks
 
 KR260 Part-1 clock structure:
 
@@ -204,9 +218,9 @@ KR260 Part-1 clock structure:
 
 ---
 
-# 7. RGMII PHY Interface (DP83867)
+# 8. RGMII PHY Interface (DP83867)
 
-## 7.1 RX (PHY → MAC)
+## 8.1 RX (PHY → MAC)
 
 | Port | Description |
 |------|-------------|
@@ -214,7 +228,7 @@ KR260 Part-1 clock structure:
 | `rgmii_rx_ctl` | RX_DV + RX_ER |
 | `rgmii_rx_clk` | PHY-generated RX clock |
 
-## 7.2 TX (MAC → PHY)
+## 8.2 TX (MAC → PHY)
 
 | Port | Description |
 |------|-------------|
@@ -226,7 +240,7 @@ DP83867 is strapped in **RGMII-ID Mode (internal TX clock delay)**.
 
 ---
 
-# 8. MDIO/MDC Management
+# 9. MDIO/MDC Management
 
 | Port | Description |
 |------|-------------|
@@ -244,7 +258,7 @@ Used for:
 
 ---
 
-# 9. Interrupt
+# 10. Interrupt
 
 | Port | Description |
 |------|-------------|
@@ -254,7 +268,7 @@ Unused in this project.
 
 ---
 
-# 10. PHY Reset
+# 11. PHY Reset
 
 | Port | Description |
 |------|-------------|
@@ -262,13 +276,13 @@ Unused in this project.
 
 ---
 
-# 11. GMII/MII Ports
+# 12. GMII/MII Ports
 
 These are unused because KR260 operates in **RGMII mode only**.
 
 ---
 
-# 12. Summary
+# 13. Summary
 
 The AXI Ethernet Subsystem bridges:
 

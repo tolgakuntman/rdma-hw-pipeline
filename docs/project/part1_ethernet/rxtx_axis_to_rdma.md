@@ -149,13 +149,13 @@ Txc words 1-5 supports optional features such as:
 
 In our RDMA design we did not use any checksum so my custom tx ip sets `default: txc_tdata<= 32'h00000000;`. The MAC ignores unused fields.
 
-### 4 Tx/Rx Custom IP - Encapsulator/Decapsulator Connection
+### 4. Tx/Rx Custom IP - Encapsulator/Decapsulator Connection
 
 I have talked about MAC side connections so far and I need to mention shortly how we connect the custom ip block to decapsulator/encapsulator block. We use axi stream connection between the two and we have frame_len_bytes line for byte length info  that we take from rxs. I already talked about this and in our final design we dont use it so the connection is just the axi stream.
 
 ![connection](images/rx_to_rdma_decap.png)
 
-### 5 Final Words
+### 5. Final Words
 
 In this part, I talked about the most important part of PL ethernet, designing a custom IP block to drive Media Access Controller (MAC) aka AXI 1G/2.5G Ethernet ip block. After reading the datasheet, we have learned how to use txd, txc, rxd, and rxs axi stream connections for a communication between ethernet ip block and our custom block. This section focused on the last part of PL ethernet for RDMA rx and the first part of PL ethernet for RDMA tx. 
 
