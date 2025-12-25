@@ -7,7 +7,7 @@ in the KR260 + DP83867 PHY design.
 
 ---
 
-# 1. Overview
+## 1. Overview
 **Information about the Ethernet IP Block Used**
 The AMD AXI Ethernet Subsystem implements a tri-mode (10/100/1000 Mb/s) Ethernet MAC
 or a 10/100 Mb/s Ethernet MAC. This core supports the use of MII, GMII, SGMII, RGMII, and
@@ -39,12 +39,22 @@ AXIS_RX_TO_RDMA (Custom IP)
 ```
 
 ---
-# 2.VERY IMPORTANT LICENSE INFORMATION ABOUT THIS IP BLOCK
+## 2.VERY IMPORTANT LICENSE INFORMATION ABOUT THIS IP BLOCK
 
+Note that an evaluation license (Hardware Evaluation) for Tri-Mode Ethernet MAC IP has been obtained. It will not compile as is.
 
-# 3. AXI4-Lite Interface (MAC Register Access)
+![error](images/license_error.png)
 
-### Ports
+To solve this issue we need the license for the ethernet ip block. From the following link it is possible to get 4 month free trial license for this ip.
+
+[License Link](https://login.amd.com/app/amd_accountamdcom_1/exk559qg7f4aW4yim697/sso/saml?SAMLRequest=fVLLbsIwEPyVyHdwEhECFkGioKpItEVAW6kX5JgNWHXs4HVa%2BPuaQF%2BHcvJqPTuznvEAeakqNqrdTi9gXwO64FAqjay5yEhtNTMcJTLNS0DmBFuO7mcsboesssYZYRQJRohgnTR6bDTWJdgl2Hcp4Gkxy8jOuQoZpVwIU2vX5uWmLUxJTwoUK%2BppCqmAVgadByEJJn4NqfmJ8Gdcma3U38O8qqiv1xdSX%2FruOqJweEuS%2Fn6bFh3%2B0jnKsttPKaJp1EgwnWRk3Sl6ScRTHnbTYtMNedELU9hESd6BKM9FHIl%2BnsQejFjDVKPj2mUkDuOkFcWtOFlFfZb0WJi2wzB%2BJcGtsQIaCzNScIVAgvnFmhupN1Jvr%2FuYn0HI7lareWv%2BuFyR4BksNs%2F3ADIcnLZnzT72Vz7XaflXKGT4XwT%2BvLQG9JfEWa9iD55zOpkbJcUxGCllPsYWuIOMOFsDocPz1N%2F%2FM%2FwE&RelayState=https%3A%2F%2Faccount%2Eamd%2Ecom%2Fen%2Fforms%2Flicense%2Flicense%2Dform%2Ehtml)
+
+Choose this option and the ethernet ip block will be functional.
+![license](images/license.png)
+
+## 3. AXI4-Lite Interface (MAC Register Access)
+
+#### Ports
 
 | Port | Description |
 |------|-------------|
@@ -56,7 +66,7 @@ AXIS_RX_TO_RDMA (Custom IP)
 | `s_axi_lite_clk` | AXI-Lite clock |
 | `s_axi_lite_resetn` | AXI-Lite reset |
 
-### Used to Configure
+#### Used to Configure
 
 - MAC address  
 - Enable TX/RX datapaths  
@@ -68,7 +78,7 @@ AXIS_RX_TO_RDMA (Custom IP)
 
 ---
 
-# 4. AXI-Stream TX Path (Custom IP → MAC)
+## 4. AXI-Stream TX Path (Custom IP → MAC)
 
 TX requires **two separate AXI4-Stream channels**:
 
@@ -82,7 +92,7 @@ The MAC enforces a strict ordering rule:
 
 ---
 
-## 4.1 `s_axis_txc` — TX Control Stream
+### 4.1 `s_axis_txc` — TX Control Stream
 
 Exactly **6 words** per Ethernet frame (Normal Transmit Mode).
 
@@ -94,7 +104,7 @@ Exactly **6 words** per Ethernet frame (Normal Transmit Mode).
 | `tready` | MAC ready |
 | `tlast` | Asserted on word 5 |
 
-### TXC Word Format (PG138 Table 2-27)
+#### TXC Word Format (PG138 Table 2-27)
 
 | Word | Purpose |
 |------|---------|
@@ -109,7 +119,7 @@ This selects **Normal Transmit AXI4-Stream Frame**, not “Receive-Status Transm
 
 ---
 
-## 4.2 `s_axis_txd` — TX Data Stream
+### 4.2 `s_axis_txd` — TX Data Stream
 
 Actual Ethernet bytes are streamed here.
 
@@ -121,7 +131,7 @@ Actual Ethernet bytes are streamed here.
 | `tready` | Backpressure from MAC |
 | `tlast` | End of frame |
 
-### Requirements
+#### Requirements
 
 - Data beats must be **continuous** until `tlast=1`
 - `tkeep` accurate on the last word
@@ -135,7 +145,7 @@ tdata[31:24] = byte3
 
 ---
 
-## 4.3 Full TX Timing (Control → Data)
+### 4.3 Full TX Timing (Control → Data)
 
 TXC Stage:
 Word0 Word1 Word2 Word3 Word4 Word5 (tlast=1)
@@ -153,7 +163,7 @@ If TXC does not finish cleanly:
 
 ---
 
-# 5. AXI-Stream RX Path (MAC → Custom IP)
+## 5. AXI-Stream RX Path (MAC → Custom IP)
 
 MAC sends **two streams** back-to-back:
 
@@ -162,7 +172,7 @@ MAC sends **two streams** back-to-back:
 
 ---
 
-## 5.1 `m_axis_rxd` — RX Data Stream
+### 5.1 `m_axis_rxd` — RX Data Stream
 
 | Signal | Meaning |
 |--------|---------|
@@ -176,11 +186,11 @@ MAC guarantees each packet arrives as **one contiguous AXI burst**.
 
 ---
 
-## 5.2 `m_axis_rxs` — RX Status Stream
+### 5.2 `m_axis_rxs` — RX Status Stream
 
 Each RX packet is followed by **6 words** of status information.
 
-### Word 5, bits[15:0]:
+#### Word 5, bits[15:0]:
 
 
 Other words contain:
@@ -195,7 +205,7 @@ Your custom RDMA RX uses only **length**, which is correct.
 
 ---
 
-# 6. Reset Signals
+## 6. Reset Signals
 
 | Port | Purpose |
 |------|----------|
@@ -206,7 +216,7 @@ Your custom RDMA RX uses only **length**, which is correct.
 
 ---
 
-# 7. Clocks
+## 7. Clocks
 
 KR260 Part-1 clock structure:
 
@@ -218,9 +228,9 @@ KR260 Part-1 clock structure:
 
 ---
 
-# 8. RGMII PHY Interface (DP83867)
+## 8. RGMII PHY Interface (DP83867)
 
-## 8.1 RX (PHY → MAC)
+### 8.1 RX (PHY → MAC)
 
 | Port | Description |
 |------|-------------|
@@ -228,7 +238,7 @@ KR260 Part-1 clock structure:
 | `rgmii_rx_ctl` | RX_DV + RX_ER |
 | `rgmii_rx_clk` | PHY-generated RX clock |
 
-## 8.2 TX (MAC → PHY)
+### 8.2 TX (MAC → PHY)
 
 | Port | Description |
 |------|-------------|
@@ -240,7 +250,7 @@ DP83867 is strapped in **RGMII-ID Mode (internal TX clock delay)**.
 
 ---
 
-# 9. MDIO/MDC Management
+## 9. MDIO/MDC Management
 
 | Port | Description |
 |------|-------------|
@@ -258,7 +268,7 @@ Used for:
 
 ---
 
-# 10. Interrupt
+## 10. Interrupt
 
 | Port | Description |
 |------|-------------|
@@ -268,7 +278,7 @@ Unused in this project.
 
 ---
 
-# 11. PHY Reset
+## 11. PHY Reset
 
 | Port | Description |
 |------|-------------|
@@ -276,13 +286,13 @@ Unused in this project.
 
 ---
 
-# 12. GMII/MII Ports
+## 12. GMII/MII Ports
 
 These are unused because KR260 operates in **RGMII mode only**.
 
 ---
 
-# 13. Summary
+## 13. Summary
 
 The AXI Ethernet Subsystem bridges:
 
