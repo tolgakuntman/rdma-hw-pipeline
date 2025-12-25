@@ -77,7 +77,19 @@ See the following figures for the Transmit AXI4-Stream Control Word definition.
 
 
 
+
+
+
+
+
+
 ![tx_words1](tx_word0-1.png)
+
+
+
+
+
+
 
 
 
