@@ -2,7 +2,7 @@
 
 After PHY and MAC communication with RGMII we need a custom designed ip block to handle packets that we need to send or receive. Since ethernet ip block (MAC) is using axi stream for txd, txc, rxd, and rxs we need to use axi stream for our custom block as well. In our final rdma design this block will sit between the decapsulator/encapsulator and ethernet IP block (MAC). In my separate test for tx I used this custom block as a pattern generator. For rx tests I used this block as a passthrough block between MAC and bram which I used to read packages that I sent from my laptop. The image of the block design I used for separate tx rx tests is below:
 
-![Clocking Wizard](images/custom_eth.png)
+![custom_eth_ip](images/custom_eth.png)
 
 RX_to_RDMA block should use the txd, txc, rxd, and rxs connections correctly to have a succesfull ethernet connection. After reading the datasheet of ethernet ip block we can learn how to drive the rxd data stream and rxs status stream for rx side, and txd data stream and txc control stream for the tx side for the MAC. This will be discussed in following chapters in detail.
 
@@ -23,11 +23,11 @@ AXIS_RX_TO_RDMA  ←––––––– this block
 Decapsulator
 ```
 
-For the rx side of RDMA this rx_axis_to_rdma ip block is a passthrough block that takes the frames from MAC and sends the packets to decapsulator. For tx side, this block triggers txc (tx control line) in a certain way to start sending packets to the MAC, this time it passes packets from encapsulator through the MAC.
-
 ---
 
-## 2. AXI-Stream Interfaces Used in the RDMA RX Block
+## 2. AXI4-Stream Interfaces Used in the RDMA RX Block
+
+The AXI4-Stream interface transfers data in one direction only. The Ethernet transmit interface uses an AXI4-Stream Data interface and an AXI4-Stream Control interface. The Ethernet receive interface uses an AXI4-Stream Data interface and an AXI4-Stream Status interface. The AXI4- Stream interfaces used in this implementation are 32-bits wide, have side-band control signals, and operate with a 100 MHz clock. Data is transferred across the AXI4-Stream Data interfaces. Additional control information is transferred across the transmit AXI4-Stream Control interface and additional status information is transferred across the receive AXI4-Stream Status interface.
 
 ### 2.1 `m_axis_rxd` — RX Data Stream (MAC → RDMA RX)
 
@@ -43,41 +43,46 @@ The AXI Ethernet Subsystem guarantees each Ethernet frame arrives as **one conti
 
 ---
 
-### 2.2 `m_axis_rxs` — RX Status Stream (MAC → RDMA RX)
+### 2.2 `m_axis_rxs` — RX Status Stream (MAC → Decapsulator)
 
-A single 32-bit status word emitted **after every frame**.
+After receiving the Ethernet data, the receive channel initiates
+transfer on the AXI4-Stream Status Interface before starting the transfer on AXI4-Stream Data
+Interface.
 
-| Field / Bit        | Meaning                                  |
-|--------------------|-------------------------------------------|
-| Length             | Total frame length in bytes               |
-| Frame OK           | 1 = CRC/length OK, 0 = error              |
-| VLAN/checksum bits | Optional MAC feature bits                 |
+The receive AXI4-Stream Status frame always contains six 32-bit status words (words 0 to 5). Receive AXI4-Stream Status word 5, bits 15-0 always contains the number of bytes in length of
+the frame being sent across the receive AXI4-Stream Status interface. I put an output pin for the check of rxs byte length signal but we did not need to implement that to the final design. The following figure and tables show the definitions of these 6 words.
 
-The RDMA RX block latches this value after receiving `tlast`.
+![rxs_words](images/AXI4-Stream Status Words.png)
 
-> **NOTE (screenshot):** Add PG138 “RX Status Word Format” figure.
+The detailed information about every part of these 6 words can be found in page 116-119 of AXI 1G/2.5G Ethernet Subsystem v7.2 Product Guide.
+---
+## 3. AXI4-Stream Interfaces Used in the RDMA TX Block
+
+The transmit control block must maintain coherence between the data and control buses. Because data frames can vary from 1 byte to over 9 Kb in length and the control information for each frame is a constant six 32-bit words, care must be taken under conditions where the buffer for the frame data or control data fills up to prevent an out-of-sequence condition. To maintain coherency, the AXI4-Stream data ready signal is held not ready until a AXI4-Stream control stream has been received. After this has occurred, the AXI4-Stream data ready signal is driven ready (as long as there is buffer space available) and the AXI4-Stream control ready signal is held not ready until the data stream transfer is complete. 
+
+The following figure shows this flow clearly:
+
+![tx_flow](images/tx_flow.png)
+
+### 3.1 `s_axis_txc` — TX Control Channel (MAC Mirror → Debug)
+**Normal Transmit AXI4-Stream Control Words**
+The Normal Transmit AXI4-Stream Control frame always contains six 32-bit control words
+(Words 0 to 5). Of these words, only control words 0, 1, 2, and 3 are used by the AXI Ethernet
+Subsystem.
+See the following figures for the Transmit AXI4-Stream Control Word definition.
+
+![tx_words](tx_words.png)
+
+![tx_words](tx_word0-1.png)
+
+![tx_words](tx_word2-3.png)
 
 ---
 
-### 2.3 `s_axis_txc` — TX Control Channel (MAC Mirror → Debug)
-
-Although unused by the RDMA RX block, this interface is included for completeness.
-
-| Signal        | Meaning                                     |
-|---------------|----------------------------------------------|
-| `tdata[15:0]` | Per-frame TX control flags (pause / flow-ctrl)|
-| `tvalid`      | Control word valid                            |
-| `tready`      | Accepted by MAC                               |
-| `tlast`       | End of control word                           |
-
-This mirrors TX-side status information.
-
----
-
-### 2.4 `s_axis_txd` — TX Data Stream (Pattern Generator / Encapsulator → MAC)
+### 3.2 `s_axis_txd` — TX Data Stream (Encapsulator → MAC)
 
 TX equivalent of `m_axis_rxd`.  
-Used in TX Path, standalone Part-1 tests, and Part-3 encapsulator.
+Used in TX Path and standalone Part-1 tests.
 
 | Signal        | Meaning                                      |
 |---------------|-----------------------------------------------|
@@ -88,134 +93,5 @@ Used in TX Path, standalone Part-1 tests, and Part-3 encapsulator.
 | `tready`      | Backpressure from MAC                          |
 
 The sender must stream each frame as a single contiguous burst.
-
-
-
-## 3. Stage B — Header Parsing  
-*(Ethernet → IP → UDP → RDMA)*
-
-After a full frame is buffered, parsing begins.
-
----
-
-### 3.1 Ethernet Header
-
-We extract:
-
-- Destination MAC  
-- Source MAC  
-- EtherType (must be IPv4)
-
-If:
-```
-EtherType ≠ 0x0800
-```
-→ frame is discarded.
-
----
-
-### 3.2 IPv4 Header
-
-We check:
-
-- Version & IHL  
-- Total Length  
-- Protocol must be UDP  
-- Destination IP must match KR260 endpoint  
-
-If any mismatch occurs:
-→ frame dropped.
-
----
-
-### 3.3 UDP Header
-
-We validate:
-
-- Source Port  
-- Destination Port (must match RDMA service port)  
-- Length field  
-- Optional checksum handling  
-
----
-
-### 3.4 RDMA Header (Custom Protocol)
-
-Our custom RDMA header includes:
-
-- Opcode  
-- Queue Pair Number (QPN)  
-- Offset / Address  
-- Payload Length  
-- Optional flags  
-
-These become **RDMA packet metadata** delivered to the RDMA Core.
-
-> **NOTE (diagram):** Insert header breakdown:
-> `[ETH][IP][UDP][RDMA][Payload]`
-
----
-
-## 4. Stage C — Delivering RDMA Payload
-
-Once RDMA header is validated:
-
-- RDMA payload begins immediately after the header  
-- RDMA RX block streams payload to RDMA Core  
-- RDMA Core decides storage / write target  
-
-If:
-
-- Header invalid  
-- OR status word indicates error (`frame_ok = 0`)
-
-Then:
-→ **Entire frame discarded** before payload delivery.
-
----
-
-## 5. Why This Block Is Identical in All Versions
-
-This block:
-
-- Does **NOT** depend on TX test generators  
-- Does **NOT** depend on BRAM buffering configuration  
-- Does **NOT** depend on PHY / MDIO / negotiation  
-- Does **NOT** depend on encapsulator or TX RDMA logic  
-
-It only requires:
-
-1. `m_axis_rxd` (AXI-Stream data)
-2. `m_axis_rxs` (AXI-Stream status)
-
-Since these are identical across:
-
-- Standalone Part-1  
-- RDMA Part-3  
-- Final integrated design  
-
-→ **The same RDMA RX block is fully reusable.**
-
----
-
-## 6. Summary
-
-The AXIS RX → RDMA Block performs:
-
-- Lossless capture of MAC RX frames  
-- Parsing of Ethernet / IPv4 / UDP headers  
-- Extraction of RDMA metadata  
-- Delivery of validated RDMA payload  
-- Full abstraction from networking layers  
-
-This makes the RDMA system modular:
-
-```
-PHY + MAC  →  AXIS RX → RDMA  →  RDMA Core
-```
-
-MAC + PHY handle Ethernet.  
-RDMA RX handles transport framing.  
-RDMA Core handles semantics and placement.
 
 ---
