@@ -6,6 +6,10 @@ After PHY and MAC communication with RGMII we need a custom designed ip block to
 
 RX_to_RDMA block should use the txd, txc, rxd, and rxs connections correctly to have a succesfull ethernet connection. After reading the datasheet of ethernet ip block we can learn how to drive the rxd data stream and rxs status stream for rx side, and txd data stream and txc control stream for the tx side for the MAC. This will be discussed in following chapters in detail.
 
+Here is a separate picture of both rx side and tx side AXIS_RX/TX_to_RDMA custom ip block that I will explain in the following sections.
+![custom_eth_ip](images/rx_to_rdma_ip.png)
+![custom_eth_ip](images/tx_to_rdma_ip.png)
+
 ---
 
 ## 1. Role in the System
@@ -145,14 +149,13 @@ Txc words 1-5 supports optional features such as:
 
 In our RDMA design we did not use any checksum so my custom tx ip sets `default: txc_tdata<= 32'h00000000;`. The MAC ignores unused fields.
 
-### 3.6 Overview of TX custom ip
+### 4 Tx/Rx Custom IP - Encapsulator/Decapsulator Connection
 
-TXC stage:
-  Word0   Word1   Word2   Word3   Word4   Word5   (tlast=1)
-   ↓       ↓       ↓       ↓       ↓       ↓
-[tready=1] → MAC accepts the full control frame
+I have talked about MAC side connections so far and I need to mention shortly how we connect the custom ip block to decapsulator/encapsulator block. We use axi stream connection between the two and we have rdma_length info line that we take from rxs. I talked about this before but in our final design we dont use it so the connection is just the axi stream.
 
-TXD stage:
-  Data0   Data1   …   DataN   (tlast=1)
-   ↓       ↓             ↓
-[tready=1] → MAC transmits the Ethernet frame on GMII/RGMII
+![connection](images/rx_to_rdma_decap.png)
+
+### 5 Final Words
+
+In this part I talked about the most important part of PL ethernet, designing a custom IP block to drive Media Access Controller (MAC) aka AXI 1G/2.5G Ethernet ip block. After reading the datasheet we learned how to use txd, txc, rxd, and rxs axi stream connections for a communication between ethernet ip block and our custom block. This section focused on the last part of PL ethernet for RDMA rx and the first part of PL ethernet for RDMA tx. 
+
