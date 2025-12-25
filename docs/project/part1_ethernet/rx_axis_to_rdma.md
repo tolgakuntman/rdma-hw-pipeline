@@ -1,4 +1,4 @@
-# AXIS RX_to_RDMA Block
+# AXIS_RX_to_RDMA Custom IP Block
 
 After PHY and MAC communication with RGMII we need a custom designed ip block to handle packets that we need to send or receive. Since ethernet ip block (MAC) is using axi stream for txd, txc, rxd, and rxs we need to use axi stream for our custom block as well. In our final rdma design this block will sit between the decapsulator/encapsulator and ethernet IP block (MAC). In my separate test for tx I used this custom block as a pattern generator. For rx tests I used this block as a passthrough block between MAC and bram which I used to read packages that I sent from my laptop. The image of the block design I used for separate tx rx tests is below:
 
@@ -55,7 +55,9 @@ the frame being sent across the receive AXI4-Stream Status interface. I put an o
 ![rxs_words](images/AXI4-Stream Status Words.png)
 
 The detailed information about every part of these 6 words can be found in page 116-119 of AXI 1G/2.5G Ethernet Subsystem v7.2 Product Guide.
+
 ---
+
 ## 3. AXI4-Stream Interfaces Used in the RDMA TX Block
 
 The transmit control block must maintain coherence between the data and control buses. Because data frames can vary from 1 byte to over 9 Kb in length and the control information for each frame is a constant six 32-bit words, care must be taken under conditions where the buffer for the frame data or control data fills up to prevent an out-of-sequence condition. To maintain coherency, the AXI4-Stream data ready signal is held not ready until a AXI4-Stream control stream has been received. After this has occurred, the AXI4-Stream data ready signal is driven ready (as long as there is buffer space available) and the AXI4-Stream control ready signal is held not ready until the data stream transfer is complete. 
