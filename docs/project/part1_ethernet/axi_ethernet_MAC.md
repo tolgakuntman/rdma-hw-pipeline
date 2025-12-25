@@ -3,7 +3,7 @@
 This section explains every major interface of the AXI 1G/2.5G Ethernet Subsystem IP,
 including the AXI4-Lite control path, AXI4-Stream TX/RX channels,
 RGMII PHY interface, MDIO management, clock/reset structure, and how these are used
-in the KR260 + DP83867 design.
+in the KR260 + DP83867 PHY design.
 
 ---
 
@@ -17,14 +17,14 @@ The AXI Ethernet Subsystem is logically divided into three layers:
 
 System position:
 
+```
 DP83867 PHY
-↓ RGMII
-AXI Ethernet Subsystem (MAC)
-↓ m_axis_rxd
-↓ m_axis_rxs
-↑ s_axis_txc
-↑ s_axis_txd
-Custom RDMA IP
+     ↓ RGMII
+AXI Ethernet Subsystem (MAC) ←––––––– this block
+     ↓ m_axis_rxd (data)
+     ↓ m_axis_rxs (status)
+AXIS_RX_TO_RDMA (Custom IP)
+```
 
 ---
 

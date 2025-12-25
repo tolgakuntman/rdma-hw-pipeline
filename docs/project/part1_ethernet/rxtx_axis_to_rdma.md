@@ -17,7 +17,7 @@ Here is a picture of rx side AXIS_RX_to_RDMA custom ip block that I will explain
 End-to-end pipeline for RDMA Rx:
 
 ```
-PHY (DP83867)
+DP83867 PHY
      ↓ RGMII
 AXI Ethernet Subsystem (MAC)
      ↓ m_axis_rxd (data)
@@ -29,7 +29,7 @@ Decapsulator
 End-to-end pipeline for RDMA Tx:
 
 ```
-PHY (DP83867)
+DP83867 PHY
      ↑ RGMII
 AXI Ethernet Subsystem (MAC)
      ↑ s_axis_txd (data)

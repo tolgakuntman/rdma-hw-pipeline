@@ -1068,29 +1068,6 @@ If any of these occur out of order, the MAC may never lock to the PHY’s RGMII 
 
 ---
 
-### 7.4 Timing Diagram (Bring-Up Sequence — MUST INCLUDE IN PDF)
-
-> **NOTE (diagram placeholder):** Insert timing block/sequence diagram showing:  
-> – Power → 25 MHz → phy_rst_n → straps → MDIO init → autoneg → MAC start → RXC active.
-
-Recommended figure structure:
-
-```
-Time →
- ├─ Power Rails ────────────────┐
- ├─ 25 MHz Ref ─────────────┐   │
- ├─ phy_rst_n (LOW) ────────┘   │
- ├─ phy_rst_n (HIGH)  ← straps   │
- ├─ MDIO Init → BMCR write       │
- ├─ Autoneg FSM running          │
- ├─ BMSR Link Up                 │
- ├─ MAC SetOperatingSpeed(1000)  │
- ├─ MAC RX/TX Start              │
- ├─ RGMII RXC toggling → frames  │
-```
-
----
-
 ### 7.5 Full Bring-Up Procedure (Our KR260 Implementation)
 
 This is the **exact** sequence we follow in Vitis during Part-1 Ethernet bring-up.
@@ -1316,40 +1293,6 @@ If delays are wrong or not applied, symptoms include:
 - MAC sees garbage frame length   
 - Only works at 100 Mbps, not at 1000 Mbps  
 
-#### Check 1 — Is RXC toggling?
-
-Probe the pin with an oscilloscope:
-
-Expected:
-
-```
-125 MHz
-~50% duty
-~800 mV swing (3.3V -> single-ended RGMII)
-Clean edges
-```
-
-If missing:
-
-- PHY not out of reset  
-- RGMII configured wrong  
-- Strap pins not latched  
-- MAC not started yet  
-
-#### Check 2 — Does TXC toggle when sending packets?
-
-Send continuous pings:
-
-```
-ping -t <KR260 IP> OR
-sudo ping -f <KR260 IP>
-```
-
-Then scope `rgmii_txc`.
-
-If TXC toggles but RXC doesn’t → PHY side problem.  
-If RXC toggles but TXC doesn’t → MAC side problem.
-
 ---
 
 ### 8.4 Autonegotiation Debugging
@@ -1372,41 +1315,6 @@ If link never becomes UP:
 - Autoneg disabled in BMCR
 - DONT FORCE SPEED in software — let PHY negotiate  
   (MAC speed is independent of PHY speed)
-
----
-
-### 8.5 Debugging the Strap Configuration
-
-DP83867 strap pins specify:
-
-- PHY address
-- RGMII/SGMII/MII mode
-- Delay enable/disable
-- Auto-MDIX
-- RX/TX polarity
-- LED functions
-
-If straps are wrong → NOTHING works.
-
-Check the KR260 schematic and confirm:
-
-- PHY address for the port you use  
-- RGMII mode straps  
-- Delay bits set (TX/RX internal delay)
-
-If MDIO register reads show:
-
-```
-RGMIICTL.RGMII_EN = 0
-```
-
-then strap configuration failed.
-
-Fix:
-
-- Hard reset the board  
-- Reload bitstream  
-- Confirm phy_rst_n actually toggles  
 
 ---
 
