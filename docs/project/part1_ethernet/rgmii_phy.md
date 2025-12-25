@@ -1207,22 +1207,7 @@ If LINK LED is off:
 
 ---
 
-#### **Observation B — Observe RGMII RXC with Oscilloscope**
-
-Expected:
-- 125 MHz  
-- Clean edges  
-- 50% duty  
-- Activity on RXD lines  
-
-If RXC is:
-- **Flat** → PHY stuck in reset  
-- **10/100 MHz** → wrong strap config  
-- **Distorted** → missing RGMII delay, routing skew  
-
----
-
-#### **Observation C — Check MAC/PHY with MDIO Debugging**
+#### **Observation B — Check MAC/PHY with MDIO Debugging**
 
 Commands:
 
@@ -1235,30 +1220,6 @@ Check:
 - BMSR (link status)  
 - PHYIDR1/2 (correct PHY detected)  
 - RGMIICTL (mode settings)  
-
----
-
-### 7.7 Common Bring-Up Failures (And Their Causes)
-
-#### **Failure 1 — Link Up but No RX Packets**
-**Cause:**  
-MAC speed not matched → SetOperatingSpeed not called early enough.
-
-#### **Failure 2 — RXC Missing**
-**Cause:**  
-PHY reset incorrect, straps not latched.
-
-#### **Failure 3 — Strange CRC Errors**
-**Cause:**  
-RGMII delays incorrect → need internal TX/RX skew.
-
-#### **Failure 4 — MDIO Reads Always 0xFFFF**
-**Cause:**  
-Incorrect PHY address.
-
-#### **Failure 5 — Autoneg Takes Too Long**
-**Cause:**  
-Remote switch misconfigured or cable issue.
 
 ---
 

@@ -157,5 +157,5 @@ I have talked about MAC side connections so far and I need to mention shortly ho
 
 ### 5 Final Words
 
-In this part I talked about the most important part of PL ethernet, designing a custom IP block to drive Media Access Controller (MAC) aka AXI 1G/2.5G Ethernet ip block. After reading the datasheet we learned how to use txd, txc, rxd, and rxs axi stream connections for a communication between ethernet ip block and our custom block. This section focused on the last part of PL ethernet for RDMA rx and the first part of PL ethernet for RDMA tx. 
+In this part, I talked about the most important part of PL ethernet, designing a custom IP block to drive Media Access Controller (MAC) aka AXI 1G/2.5G Ethernet ip block. After reading the datasheet, we have learned how to use txd, txc, rxd, and rxs axi stream connections for a communication between ethernet ip block and our custom block. This section focused on the last part of PL ethernet for RDMA rx and the first part of PL ethernet for RDMA tx. 
 
