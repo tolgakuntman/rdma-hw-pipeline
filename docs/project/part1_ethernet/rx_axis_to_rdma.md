@@ -5,6 +5,7 @@ After PHY and MAC communication with RGMII we need a custom designed ip block to
 ![Clocking Wizard](images/custom_eth.png)
 
 RX_to_RDMA block should use the txd, txc, rxd, and rxs connections correctly to have a succesfull ethernet connection. After reading the datasheet of ethernet ip block we can learn how to drive the rxd data stream and rxs status stream for rx side, and txd data stream and txc control stream for the tx side for the MAC. This will be discussed in following chapters in detail.
+
 ---
 
 ## 1. Role in the System
