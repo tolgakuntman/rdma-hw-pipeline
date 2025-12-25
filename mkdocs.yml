@@ -90,7 +90,7 @@ nav:
     - RGMII & PHY: project/part1_ethernet/rgmii_phy.md
     - TX Path: project/part1_ethernet/tx_path.md
     - RX Path: project/part1_ethernet/rx_path.md
-    - AXIS RX_to_RDMA Block: project/part1_ethernet/rx_axis_to_rdma.md
+    - AXIS RX/TX_to_RDMA Block: project/part1_ethernet/rxtx_axis_to_rdma.md
     - Clocking & Timing: project/part1_ethernet/timing_clocks.md
     - Combined Block Design: project/part1_ethernet/combined_bd.md
     - Vitis SW Initialization: project/part1_ethernet/vitis_sw_init.md
