@@ -52,33 +52,7 @@ To solve this issue we need the license for the ethernet ip block. From the foll
 Choose this option and the ethernet ip block will be functional.
 ![license](images/license.png)
 
-## 3. AXI4-Lite Interface (MAC Register Access)
-
-#### Ports
-
-| Port | Description |
-|------|-------------|
-| `s_axi_aw*` | AXI write address |
-| `s_axi_w*`  | AXI write data |
-| `s_axi_b*`  | Write response |
-| `s_axi_ar*` | AXI read address |
-| `s_axi_r*`  | Read data/response |
-| `s_axi_lite_clk` | AXI-Lite clock |
-| `s_axi_lite_resetn` | AXI-Lite reset |
-
-#### Used to Configure
-
-- MAC address  
-- Enable TX/RX datapaths  
-- Flow control enable  
-- FCS stripping  
-- MDIO access to DP83867 PHY  
-- Operating speed  
-- Starting / stopping MAC  
-
----
-
-## 4. AXI-Stream TX Path (Custom IP → MAC)
+## 3. AXI-Stream TX Path (Custom IP → MAC)
 
 TX requires **two separate AXI4-Stream channels**:
 
@@ -92,7 +66,7 @@ The MAC enforces a strict ordering rule:
 
 ---
 
-### 4.1 `s_axis_txc` — TX Control Stream
+### 3.1 `s_axis_txc` — TX Control Stream
 
 Exactly **6 words** per Ethernet frame (Normal Transmit Mode).
 
@@ -119,7 +93,7 @@ This selects **Normal Transmit AXI4-Stream Frame**, not “Receive-Status Transm
 
 ---
 
-### 4.2 `s_axis_txd` — TX Data Stream
+### 3.2 `s_axis_txd` — TX Data Stream
 
 Actual Ethernet bytes are streamed here.
 
@@ -145,7 +119,7 @@ tdata[31:24] = byte3
 
 ---
 
-### 4.3 Full TX Timing (Control → Data)
+### 3.3 Full TX Timing (Control → Data)
 
 TXC Stage:
 Word0 Word1 Word2 Word3 Word4 Word5 (tlast=1)
@@ -163,7 +137,7 @@ If TXC does not finish cleanly:
 
 ---
 
-## 5. AXI-Stream RX Path (MAC → Custom IP)
+## 4. AXI-Stream RX Path (MAC → Custom IP)
 
 MAC sends **two streams** back-to-back:
 
@@ -172,7 +146,7 @@ MAC sends **two streams** back-to-back:
 
 ---
 
-### 5.1 `m_axis_rxd` — RX Data Stream
+### 4.1 `m_axis_rxd` — RX Data Stream
 
 | Signal | Meaning |
 |--------|---------|
@@ -186,7 +160,7 @@ MAC guarantees each packet arrives as **one contiguous AXI burst**.
 
 ---
 
-### 5.2 `m_axis_rxs` — RX Status Stream
+### 4.2 `m_axis_rxs` — RX Status Stream
 
 Each RX packet is followed by **6 words** of status information.
 
@@ -205,7 +179,7 @@ Your custom RDMA RX uses only **length**, which is correct.
 
 ---
 
-## 6. Reset Signals
+## 5. Reset Signals
 
 | Port | Purpose |
 |------|----------|
@@ -216,7 +190,7 @@ Your custom RDMA RX uses only **length**, which is correct.
 
 ---
 
-## 7. Clocks
+## 6. Clocks
 
 KR260 Part-1 clock structure:
 
@@ -228,9 +202,9 @@ KR260 Part-1 clock structure:
 
 ---
 
-## 8. RGMII PHY Interface (DP83867)
+## 7. RGMII PHY Interface (DP83867)
 
-### 8.1 RX (PHY → MAC)
+### 7.1 RX (PHY → MAC)
 
 | Port | Description |
 |------|-------------|
@@ -238,7 +212,7 @@ KR260 Part-1 clock structure:
 | `rgmii_rx_ctl` | RX_DV + RX_ER |
 | `rgmii_rx_clk` | PHY-generated RX clock |
 
-### 8.2 TX (MAC → PHY)
+### 7.2 TX (MAC → PHY)
 
 | Port | Description |
 |------|-------------|
@@ -250,7 +224,7 @@ DP83867 is strapped in **RGMII-ID Mode (internal TX clock delay)**.
 
 ---
 
-## 9. MDIO/MDC Management
+## 8. MDIO/MDC Management
 
 | Port | Description |
 |------|-------------|
@@ -268,7 +242,7 @@ Used for:
 
 ---
 
-## 10. Interrupt
+## 9. Interrupt
 
 | Port | Description |
 |------|-------------|
@@ -278,7 +252,7 @@ Unused in this project.
 
 ---
 
-## 11. PHY Reset
+## 10. PHY Reset
 
 | Port | Description |
 |------|-------------|
@@ -286,13 +260,13 @@ Unused in this project.
 
 ---
 
-## 12. GMII/MII Ports
+## 11. GMII/MII Ports
 
 These are unused because KR260 operates in **RGMII mode only**.
 
 ---
 
-## 13. Summary
+## 12. Summary
 
 The AXI Ethernet Subsystem bridges:
 
