@@ -86,14 +86,13 @@ nav:
     - Description : project/description.md
   - Part 1: 
     - Introduction: project/part1_ethernet/intro.md
-    - AXI Ethernet Subsystem: project/part1_ethernet/axi_ethernet_subsystem.md
+    - AXI Ethernet MAC: project/part1_ethernet/axi_ethernet_MAC.md
     - RGMII & PHY: project/part1_ethernet/rgmii_phy.md
     - TX Path: project/part1_ethernet/tx_path.md
     - RX Path: project/part1_ethernet/rx_path.md
     - AXIS RX/TX_to_RDMA Block: project/part1_ethernet/rxtx_axis_to_rdma.md
     - Clocking & Timing: project/part1_ethernet/timing_clocks.md
     - Combined Block Design: project/part1_ethernet/combined_bd.md
-    - Vitis SW Initialization: project/part1_ethernet/vitis_sw_init.md
     - Measurements & Results: project/part1_ethernet/measurements.md
   - Part 2: 
     - IP Encapsulator : 
