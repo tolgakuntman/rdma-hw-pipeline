@@ -85,9 +85,13 @@ I used GEM2 PL ethernet port for the project. Here is an image for the 4 etherne
 The most important steps to do before being able to work with this ip block in our RDMA project were getting the license and setting board-based I/O constraints before starting the project. So after doing these two steps we can finally customize the block specifically for our board kria kr260. We can see the board based IO constraints that we previously generated on the first page.
 
 ![ethernet_board](images/ethernet_board.png)
+
 In the physical interface part we can see RGMII and 1gbps speed is preselected. The reason we cannot have any other option is because on the KR260, the GEM2 PL Ethernet port is hard-wired for RGMII. No other MAC–PHY physical interface (GMII, SGMII, MII, RMII) is supported on this port.
+
 ![ethernet_board](images/phy_screen.png)
+
 The information for all ports is also written in Kria KR260 Robotics Starter Kit User Guide (UG1092).
+
 ![ethernet_board](images/eth_ports.png)
 
 ## 3. AXI-Stream TX Path (Custom IP → MAC)
@@ -229,6 +233,8 @@ Also as a sidenote, `ext_reset_in` pin of that reset block is connected to `pl_r
 
 Clocks are another important part of this ethernet ip block. From the PG138 datasheet we can have a detailed information about clock pins and how to set them. 
 
+The axis_clk signal should be connected to the same clock source as the AXI4-Stream
+interface.
 
 
 
@@ -301,16 +307,240 @@ Unused in this project.
 
 ---
 
-## 11. GMII/MII Ports
+## 12. Summary
 
-These are unused because KR260 operates in **RGMII mode only**.
+
+
+# AXI Ethernet Subsystem — Full Port & Interface Documentation  
+*Complete Markdown Version (for KR260 RDMA Project)*
+
+This document provides a clean, structured explanation of all external ports of the  
+**AXI 1G/2.5G Ethernet Subsystem**, based on **PG138 v7.2**, KR260 schematics, and real Vivado behavior.
+
+It covers:
+
+- AXI4-Lite control interface  
+- AXI4-Stream TX & RX interfaces  
+- GMII / RGMII / MII / SGMII / SFP external MAC–PHY interfaces  
+- MDIO management  
+- Required clocks (ref_clk, gtx_clk)  
+- PHY reset signal  
+- All interrupts (mac_irq, interrupt)  
+- Full port tables rewritten in Markdown  
+- KR260 GEM2 → DP83867 RGMII explanation
 
 ---
 
-## 12. Summary
+# 1. Overview
 
-The AXI Ethernet Subsystem bridges:
+The AXI 1G/2.5G Ethernet Subsystem provides three major functional layers:
 
-AXI-Lite → MAC configuration
-AXI-Stream → TX/RX datapaths
-RGMII → Physical link to DP83867
+1. **AXI4-Lite** — software configuration  
+2. **AXI4-Stream** — transmit and receive data streams  
+3. **GMII / RGMII / SGMII** — external Ethernet MAC–PHY physical interface  
+
+On the **KR260**, the board wiring is:
+MPSoC GEM2 MAC → AXI Ethernet Subsystem → RGMII → DP83867 PHY → RJ45
+
+
+This path is **fixed in hardware**.
+
+---
+
+# 2. I/O Interfaces (Markdown Rewrite of Table 5)
+
+## 2.1 AXI4-Lite Control Interface — `s_axi`
+
+| Signal Name        | Direction | Description |
+|--------------------|-----------|-------------|
+| `s_axi_lite_clk`   | In        | AXI4-Lite clock input |
+| `s_axi_lite_resetn`| In        | Active-low reset |
+| `s_axi_awaddr[31:0]` | In     | Write address |
+| `s_axi_awvalid`    | In        | Write address valid |
+| `s_axi_awready`    | Out       | Write address ready |
+| `s_axi_wdata[31:0]`| In        | Write data |
+| `s_axi_wstrb[3:0]` | In        | Byte enables |
+| `s_axi_wvalid`     | In        | Write valid |
+| `s_axi_wready`     | Out       | Write ready |
+
+---
+
+# 3. AXI-Stream Interfaces
+
+## 3.1 Transmit Control — `s_axis_txc`
+
+| Signal | Direction | Description |
+|--------|-----------|-------------|
+| `axis_clk` | In | AXI-Stream clock (TX, RX, Status all use same clock) |
+| `axi_str_txc_aresetn` | In | Reset |
+| `axi_str_txc_tvalid` | In | Control frame valid |
+| `axi_str_txc_tready` | Out | Control frame ready |
+| `axi_str_txc_tlast`  | In | Last control word |
+
+**MAC requires exactly 6 control words**.  
+`Word0.flag = 0xA` (Normal Transmit Frame).  
+Words 1–5 = zero.
+
+---
+
+## 3.2 Transmit Data — `s_axis_txd`
+
+| Signal | Direction | Description |
+|--------|-----------|-------------|
+| `axi_str_txd_tvalid` | In | TX data beat valid |
+| `axi_str_txd_tready` | Out | MAC ready |
+| `axi_str_txd_tlast`  | In | End of frame |
+
+TXD follows TXC:
+TXC (6 words) → MAC asserts tready → TXD begins
+
+This order **must never** be violated.
+
+---
+
+## 3.3 Receive Data — `m_axis_rxd`
+
+| Signal | Direction | Description |
+|--------|-----------|-------------|
+| `m_axis_rxd_tdata[31:0]` | Out | RX data beat |
+| `m_axis_rxd_tkeep[3:0]` | Out | Byte enables |
+| `m_axis_rxd_tvalid` | Out | Data valid |
+| `m_axis_rxd_tready` | In | Backpressure from user logic |
+| `m_axis_rxd_tlast` | Out | End of frame |
+
+RX produces **a continuous burst** from first byte to last byte.
+
+---
+
+## 3.4 Receive Status — `m_axis_rxs`
+
+| Signal | Dir | Description |
+|--------|-----|-------------|
+| `m_axis_rxs_tdata` | Out | Status frame (6 words) |
+| `m_axis_rxs_tvalid`| Out | Status valid |
+| `m_axis_rxs_tready`| In  | User ready |
+| `m_axis_rxs_tlast` | Out | End of status frame |
+
+Status word 5 lower 16 bits = **frame length in bytes**.
+
+---
+
+# 4. External MAC–PHY Interfaces
+
+## 4.1 MDIO — `mdio`
+
+| Interface | Description |
+|-----------|-------------|
+| `mdio_mdc` | Clock to PHY |
+| `mdio_mdio_i` | Management input |
+| `mdio_mdio_o` | Management output |
+| `mdio_mdio_t` | Tristate control |
+
+This is always present for **MII, GMII, RGMII, SGMII** modes.
+
+---
+
+## 4.2 MII — `mii`
+
+Available **only** in MII mode.  
+Not used on KR260.
+
+---
+
+## 4.3 GMII — `gmii`
+
+Available **only** in GMII mode.  
+KR260 **does not use GMII** — wiring is RGMII only.
+
+---
+
+## 4.4 RGMII — `rgmii`
+
+| Interface | Description |
+|----------|-------------|
+| `rgmii_txd[3:0]` | Data to PHY |
+| `rgmii_tx_ctl`   | TX control |
+| `rgmii_txc`      | 125MHz DDR clock |
+| `rgmii_rxd[3:0]` | Data from PHY |
+| `rgmii_rx_ctl`   | RX control |
+| `rgmii_rxc`      | DDR clock from PHY |
+
+**KR260 uses RGMII only.**  
+RGMII is the physical wiring between:
+AXI Ethernet Subsystem → DP83867 PHY → RJ45
+
+
+No other PHY interface exists on GEM2.
+
+---
+
+## 4.5 SGMII — `sgmii`
+
+Only available if the subsystem is configured in SGMII mode.  
+KR260 PL Ethernet *does not route SGMII pins* for GEM2.
+
+(Not used.)
+
+---
+
+## 4.6 SFP — `sfp`
+
+Used only in **1000BASE-X / SGMII** subsystem mode,  
+connects to an optical SFP cage.
+
+KR260 GEM2 does **not** use this.
+
+---
+
+# 5. Required Clocks
+
+## 5.1 `ref_clk`
+
+Stable global clock for PHY transceiver logic.  
+Used primarily in SGMII / 1000BASE-X modes.
+
+KR260 RGMII mode **does not require connecting an external ref_clk**.
+
+---
+
+## 5.2 `gtx_clk`
+
+The most important clock for RGMII/GMII mode:
+
+- 125MHz
+- Drives transmit timing
+- Used for statistics counters
+- Required by DP83867 PHY
+
+KR260 routes a 125MHz clock correctly from the Clocking Wizard.
+
+---
+
+# 6. System Ports
+
+## 6.1 Interrupts
+
+| Signal | Description |
+|--------|-------------|
+| `interrupt` | Global subsystem interrupt |
+| `mac_irq`  | TEMAC interrupt (primarily MDIO events) |
+
+---
+
+# 7. PHY Reset
+
+| Signal | Direction | Description |
+|--------|-----------|-------------|
+| `phy_rst_n` | Out | Active-low PHY reset (held low 10ms after power-up, +5ms idle) |
+
+KR260 board design automatically ties this to the DP83867 reset pin.
+
+---
+
+# 8. KR260 GEM2 Ethernet — Physical Mode Limitation
+
+### **Short Answer (for your documentation):**
+
+
+
+
