@@ -1,4 +1,4 @@
-# AXI 1G/2.5G Ethernet Subsystem — Full Port & Interface Documentation
+# AXI 1G/2.5G Ethernet Subsystem — Full Port & Interface
 
 This section explains every major interface of the AXI 1G/2.5G Ethernet Subsystem IP,
 including the AXI4-Lite control path, AXI4-Stream TX/RX channels,
@@ -261,7 +261,7 @@ Also as a sidenote, `ext_reset_in` pin of that reset block is connected to `pl_r
 
 Clocks are another important part of PL ethernet IP. From the PG138 datasheet we can have a detailed information about clock pins and how to set them. There are four clocks for PL ethernet ip. These are shown in the table below:
 
-| Clock | Description |
+| Clock | Operating Frequency |
 |--------|-------------|
 | `s_axi_lite_clk` | 100 Mhz |
 | `axis_clk` | 100 MHz |
@@ -295,7 +295,7 @@ It drives **all AXI-Stream interfaces**:
 
 Key properties:
 
-- Required for **TXC/TXD/RXD/RXS synchronization**.
+- Required for **TXC/TXD/RXD/RXS**.
 - The axis_clk signal should be connected to the same clock source as the AXI4-Stream interface.
 - All data-path FIFOs, `tvalid/tready`, and `tlast` signaling occur on this clock.
 - The MAC asserts `tready` only when the datapath clock domain is active and synchronized.
@@ -400,7 +400,7 @@ This is always present for **MII, GMII, RGMII, SGMII** modes.
 
 ![interrupt_pins](images/interrupt_pins.png)
 
-These two interrupt pins are connected to `xlconcat__0` and from there to pl_ps_irq0[1:0] pin of PS.
+These two interrupt pins are connected to `xlconcat_0` and from there to pl_ps_irq0[1:0] pin of PS.
 
 ---
 
