@@ -216,10 +216,12 @@ Our custom RDMA RX uses only the **length field**, which I did not implement in 
 
 | Port | Purpose |
 |------|----------|
-| `axi_txc_aresetn` | Reset for TXC |
-| `axi_txd_aresetn` | Reset for TXD |
-| `axi_rxd_aresetn` | Reset for RXD |
-| `axi_rxs_aresetn` | Reset for RXS |
+| `axi_txc_aresetn`   | Reset for TXC       |
+| `axi_txd_aresetn`   | Reset for TXD       |
+| `axi_rxd_aresetn`   | Reset for RXD       |
+| `axi_rxs_aresetn`   | Reset for RXS       |
+| `s_axi_lite_resetn` | Reset for AXI4-Lite |
+
 
 All of these reset pins are connected to Processor System Reset block which is connected to the clock coming from PS `pl_clk0` from slowest_sync_clk pin. Like all other ip blocks in the block design, all four reset pins of the MAC are connected to this `peripheral_aresetn` pin of the reset block. So as a summary, since all ip blocks are driven by PS clock I connected them to the same clock domain reset.
 
@@ -231,21 +233,77 @@ Also as a sidenote, `ext_reset_in` pin of that reset block is connected to `pl_r
 
 ## 6. Clocks
 
-Clocks are another important part of this ethernet ip block. From the PG138 datasheet we can have a detailed information about clock pins and how to set them. 
-
-The axis_clk signal should be connected to the same clock source as the AXI4-Stream
-interface.
-
-
-
-
-KR260 Part-1 clock structure:
+Clocks are another important part of this ethernet ip block. From the PG138 datasheet we can have a detailed information about clock pins and how to set them. There are four clocks for PL ethernet ip. These are shown in the table below:
 
 | Clock | Description |
 |--------|-------------|
-| `axis_clk` | 100 MHz clock for all AXI-Stream TX/RX paths |
-| `ref_clk` | 125 MHz reference (required for RGMII transmit clock) |
-| `gtx_clk` | GMII-only — unused in RGMII mode |
+| `s_axi_lite_clk` | 100 Mhz |
+| `axis_clk` | 100 MHz |
+| `ref_clk` | 300 MHz |
+| `gtx_clk` | 125 MHz |
+
+---
+
+### 6.1 `s_axi_lite_clk` — AXI4-Lite Control Clock
+
+This is the dedicated clock input for the AXI4-Lite control interface of the AXI Ethernet Subsystem.
+
+- Used exclusively for **register access** (configuration, status reads, option settings).
+- Drives the internal control path that configures the MAC and MDIO management logic.
+- Independent from the data-plane clock (`axis_clk`).
+- Must be stable and continuous during normal operation.
+- Typically connected to **PS `pl_clk0` (100 MHz)** on KR260 designs.
+
+Only AXI-Lite configuration transactions use this clock.  
+It has **no impact** on TX/RX datapath timing.
+
+---
+
+### 6.2 `axis_clk` — AXI-Stream TX/RX Data Clock
+
+This is the main high-speed clock for the Ethernet data plane.  
+It drives **all AXI-Stream interfaces**:
+
+- `s_axis_txc` (TX Control)
+- `s_axis_txd` (TX Data)
+- `m_axis_rxd` (RX Data)
+- `m_axis_rxs` (RX Status)
+
+Key properties:
+
+- Required for **TXC/TXD/RXD/RXS synchronization**.
+- Must match the internal MAC clocking (commonly **125 MHz** for 1 GbE).
+- All data-path FIFOs, frame boundaries, `tvalid/tready`, and `tlast` signaling occur on this clock.
+- The MAC asserts `tready` only when the datapath clock domain is active and synchronized.
+
+On KR260 Ethernet (GEM2 → RGMII):
+
+- `axis_clk` originates from the Clocking Wizard (usually derived from 125 MHz PHY clock requirements).
+- This clock defines the timing of the **entire Ethernet streaming pipeline**.
+
+Without `axis_clk`, the MAC **cannot transmit or receive frames**.
+
+---
+
+### 6.3 `ref_clk`
+
+Stable global clock for PHY transceiver logic.  
+Used primarily in SGMII / 1000BASE-X modes.
+
+KR260 RGMII mode **does not require connecting an external ref_clk**.
+
+---
+
+### 6.4 `gtx_clk`
+
+The most important clock for RGMII/GMII mode:
+
+- 125MHz
+- Drives transmit timing
+- Used for statistics counters
+- Required by DP83867 PHY
+
+KR260 routes a 125MHz clock correctly from the Clocking Wizard.
 
 ---
 
@@ -311,121 +369,9 @@ Unused in this project.
 
 
 
-# AXI Ethernet Subsystem — Full Port & Interface Documentation  
-*Complete Markdown Version (for KR260 RDMA Project)*
-
-This document provides a clean, structured explanation of all external ports of the  
-**AXI 1G/2.5G Ethernet Subsystem**, based on **PG138 v7.2**, KR260 schematics, and real Vivado behavior.
-
-It covers:
-
-- AXI4-Lite control interface  
-- AXI4-Stream TX & RX interfaces  
-- GMII / RGMII / MII / SGMII / SFP external MAC–PHY interfaces  
-- MDIO management  
-- Required clocks (ref_clk, gtx_clk)  
-- PHY reset signal  
-- All interrupts (mac_irq, interrupt)  
-- Full port tables rewritten in Markdown  
-- KR260 GEM2 → DP83867 RGMII explanation
 
 ---
 
-# 1. Overview
-
-The AXI 1G/2.5G Ethernet Subsystem provides three major functional layers:
-
-1. **AXI4-Lite** — software configuration  
-2. **AXI4-Stream** — transmit and receive data streams  
-3. **GMII / RGMII / SGMII** — external Ethernet MAC–PHY physical interface  
-
-On the **KR260**, the board wiring is:
-MPSoC GEM2 MAC → AXI Ethernet Subsystem → RGMII → DP83867 PHY → RJ45
-
-
-This path is **fixed in hardware**.
-
----
-
-# 2. I/O Interfaces (Markdown Rewrite of Table 5)
-
-## 2.1 AXI4-Lite Control Interface — `s_axi`
-
-| Signal Name        | Direction | Description |
-|--------------------|-----------|-------------|
-| `s_axi_lite_clk`   | In        | AXI4-Lite clock input |
-| `s_axi_lite_resetn`| In        | Active-low reset |
-| `s_axi_awaddr[31:0]` | In     | Write address |
-| `s_axi_awvalid`    | In        | Write address valid |
-| `s_axi_awready`    | Out       | Write address ready |
-| `s_axi_wdata[31:0]`| In        | Write data |
-| `s_axi_wstrb[3:0]` | In        | Byte enables |
-| `s_axi_wvalid`     | In        | Write valid |
-| `s_axi_wready`     | Out       | Write ready |
-
----
-
-# 3. AXI-Stream Interfaces
-
-## 3.1 Transmit Control — `s_axis_txc`
-
-| Signal | Direction | Description |
-|--------|-----------|-------------|
-| `axis_clk` | In | AXI-Stream clock (TX, RX, Status all use same clock) |
-| `axi_str_txc_aresetn` | In | Reset |
-| `axi_str_txc_tvalid` | In | Control frame valid |
-| `axi_str_txc_tready` | Out | Control frame ready |
-| `axi_str_txc_tlast`  | In | Last control word |
-
-**MAC requires exactly 6 control words**.  
-`Word0.flag = 0xA` (Normal Transmit Frame).  
-Words 1–5 = zero.
-
----
-
-## 3.2 Transmit Data — `s_axis_txd`
-
-| Signal | Direction | Description |
-|--------|-----------|-------------|
-| `axi_str_txd_tvalid` | In | TX data beat valid |
-| `axi_str_txd_tready` | Out | MAC ready |
-| `axi_str_txd_tlast`  | In | End of frame |
-
-TXD follows TXC:
-TXC (6 words) → MAC asserts tready → TXD begins
-
-This order **must never** be violated.
-
----
-
-## 3.3 Receive Data — `m_axis_rxd`
-
-| Signal | Direction | Description |
-|--------|-----------|-------------|
-| `m_axis_rxd_tdata[31:0]` | Out | RX data beat |
-| `m_axis_rxd_tkeep[3:0]` | Out | Byte enables |
-| `m_axis_rxd_tvalid` | Out | Data valid |
-| `m_axis_rxd_tready` | In | Backpressure from user logic |
-| `m_axis_rxd_tlast` | Out | End of frame |
-
-RX produces **a continuous burst** from first byte to last byte.
-
----
-
-## 3.4 Receive Status — `m_axis_rxs`
-
-| Signal | Dir | Description |
-|--------|-----|-------------|
-| `m_axis_rxs_tdata` | Out | Status frame (6 words) |
-| `m_axis_rxs_tvalid`| Out | Status valid |
-| `m_axis_rxs_tready`| In  | User ready |
-| `m_axis_rxs_tlast` | Out | End of status frame |
-
-Status word 5 lower 16 bits = **frame length in bytes**.
-
----
-
-# 4. External MAC–PHY Interfaces
 
 ## 4.1 MDIO — `mdio`
 
@@ -483,40 +429,6 @@ KR260 PL Ethernet *does not route SGMII pins* for GEM2.
 
 ---
 
-## 4.6 SFP — `sfp`
-
-Used only in **1000BASE-X / SGMII** subsystem mode,  
-connects to an optical SFP cage.
-
-KR260 GEM2 does **not** use this.
-
----
-
-# 5. Required Clocks
-
-## 5.1 `ref_clk`
-
-Stable global clock for PHY transceiver logic.  
-Used primarily in SGMII / 1000BASE-X modes.
-
-KR260 RGMII mode **does not require connecting an external ref_clk**.
-
----
-
-## 5.2 `gtx_clk`
-
-The most important clock for RGMII/GMII mode:
-
-- 125MHz
-- Drives transmit timing
-- Used for statistics counters
-- Required by DP83867 PHY
-
-KR260 routes a 125MHz clock correctly from the Clocking Wizard.
-
----
-
-# 6. System Ports
 
 ## 6.1 Interrupts
 
@@ -536,11 +448,6 @@ KR260 routes a 125MHz clock correctly from the Clocking Wizard.
 KR260 board design automatically ties this to the DP83867 reset pin.
 
 ---
-
-# 8. KR260 GEM2 Ethernet — Physical Mode Limitation
-
-### **Short Answer (for your documentation):**
-
 
 
 
