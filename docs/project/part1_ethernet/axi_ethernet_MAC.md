@@ -39,7 +39,7 @@ AXIS_RX_TO_RDMA (Custom IP)
 ```
 Here is a picture of this MAC ip used in the final RDMA design.
 
-![ethernet](images/ethernet_MAC.png)
+![ethernet](images/MAC_ip.png)
 
 ---
 ## 2. VERY IMPORTANT INFORMATIONS BEFORE STARTING WITH THE MAC
@@ -60,14 +60,25 @@ You can follow this link for the detailed explanation.
 
 ### 2.2 Creating VIVADO Projects with Kria - Manage Board Connection for PL ETHERNET
 
-While creating VIVADO project for Kria Boards, there is option for "Connections --> Manage Board Connections". This option is really helpful for designing projects for Kria Boards which include popular interfaces as GPIO, MIPI, I2C on KV260 and PL Ethernet, SFP connection, Pmod, Clocks etc on KR260. After proper selection of "Manage Board Connection" option we can get some of most used interface connection easily and it also pulls the Constraint itself.
+While creating VIVADO project for Kria Boards, there is "Connections --> Manage Board Connections" option. This option is really helpful for designing projects for Kria Boards which include popular interfaces as GPIO, MIPI, I2C on KV260 and PL Ethernet, SFP connection, Pmod, Clocks on KR260. After proper selection of "Manage Board Connection" option we can get some of the most used interface connections easily and it also pulls the Constraint itself.
 
 #### KR260 VIVADO project creation with Board Connections
 1. Here we can select Connector for KR260- SoM240_1 and SoM240_2, here is an example:
 ![connection1](images/connection1.png)
 2. Now on creating Block Design, we can again see multiple Interfaces available on KR260 Board Connector, example we can get SFP connector , PL Ethernet , Pmod etc.
 ![connection2](images/connection2.png)
-As an example, i have added two PL Ethernet (GEM2 and GEM3 RGMII Ethernet) on above Kria KR260 Board based Block Design. VIVADO automatically configure the PL Ethernet IP(AXI 1G/2.5G Ethernet Subsystem IP) and pulls the constraint for it from Board file. Similarly other interfaces can also be added on VIVADO block design.
+
+As an example, i have added two PL Ethernet (GEM2 and GEM3 RGMII Ethernet) on above Kria KR260 Board based Block Design. You can drag from the board screen and place the PL GEM2 RGMII ETHERNET ip with external connections in your block design. VIVADO automatically configure the PL Ethernet IP(AXI 1G/2.5G Ethernet Subsystem IP) and pulls the constraint for it from Board file. 
+
+When selecting them via Board Connections:
+- Vivado automatically instantiates AXI 1G/2.5G Ethernet Subsystem (the MAC)
+- It automatically wires RGMII signals
+- It automatically imports the correct constraints like pin locations, I/O standards, RGMII timing requirements
+- It automatically wires MDIO signals
+- It automatically wires PHY reset signal
+
+I used GEM2 PL ethernet port for the project. Here is an image for the 4 ethernet ports that are present on the kr260 board.
+![ports](images/ethernet_ports.png)
 
 
 ### 2.3 Customizing the Subsystem in the Vivado IDE
