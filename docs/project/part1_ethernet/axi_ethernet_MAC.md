@@ -44,22 +44,30 @@ Here is a picture of this MAC ip used in the final RDMA design.
 ---
 ## 2. VERY IMPORTANT INFORMATIONS BEFORE STARTING WITH THE MAC
 ### 2.1 LICENSE INFORMATION ABOUT THIS IP BLOCK
-Note that an evaluation license (Hardware Evaluation) for Tri-Mode Ethernet MAC IP has been obtained. It will not compile as is.
+Note that an evaluation license (Hardware Evaluation) for Tri-Mode Ethernet MAC IP has been obtained. It will not compile without it.
 
 ![error](images/license_error.png)
 
-To solve this issue we need the license for the ethernet ip block. From the following link it is possible to get 4 month free trial license for this ip.
+From the following link, it is possible to get 4 month free trial license for this ip.
 
 [License Link](https://login.amd.com/app/amd_accountamdcom_1/exk559qg7f4aW4yim697/sso/saml?SAMLRequest=fVLLbsIwEPyVyHdwEhECFkGioKpItEVAW6kX5JgNWHXs4HVa%2BPuaQF%2BHcvJqPTuznvEAeakqNqrdTi9gXwO64FAqjay5yEhtNTMcJTLNS0DmBFuO7mcsboesssYZYRQJRohgnTR6bDTWJdgl2Hcp4Gkxy8jOuQoZpVwIU2vX5uWmLUxJTwoUK%2BppCqmAVgadByEJJn4NqfmJ8Gdcma3U38O8qqiv1xdSX%2FruOqJweEuS%2Fn6bFh3%2B0jnKsttPKaJp1EgwnWRk3Sl6ScRTHnbTYtMNedELU9hESd6BKM9FHIl%2BnsQejFjDVKPj2mUkDuOkFcWtOFlFfZb0WJi2wzB%2BJcGtsQIaCzNScIVAgvnFmhupN1Jvr%2FuYn0HI7lareWv%2BuFyR4BksNs%2F3ADIcnLZnzT72Vz7XaflXKGT4XwT%2BvLQG9JfEWa9iD55zOpkbJcUxGCllPsYWuIOMOFsDocPz1N%2F%2FM%2FwE&RelayState=https%3A%2F%2Faccount%2Eamd%2Ecom%2Fen%2Fforms%2Flicense%2Flicense%2Dform%2Ehtml)
 
 Choose this option and the ethernet ip block will be functional.
 ![license](images/license.png)
 
+You can follow this link for the detailed explanation. 
+[License Link](https://digilent.com/reference/vivado/temac?srsltid=AfmBOopFCrHFR-mmgt0yZ6U_JD0973M5YUpqqRmJV5cOFaeGCqq5kVro)
+
 ### 2.2 Creating VIVADO Projects with Kria - Manage Board Connection for PL ETHERNET
 
+While creating VIVADO project for Kria Boards, there is option for "Connections --> Manage Board Connections". This option is really helpful for designing projects for Kria Boards which include popular interfaces as GPIO, MIPI, I2C on KV260 and PL Ethernet, SFP connection, Pmod, Clocks etc on KR260. After proper selection of "Manage Board Connection" option we can get some of most used interface connection easily and it also pulls the Constraint itself.
 
-
-
+#### KR260 VIVADO project creation with Board Connections
+1. Here we can select Connector for KR260- SoM240_1 and SoM240_2, here is an example:
+![connection1](images/connection1.png)
+2. Now on creating Block Design, we can again see multiple Interfaces available on KR260 Board Connector, example we can get SFP connector , PL Ethernet , Pmod etc.
+![connection2](images/connection2.png)
+As an example, i have added two PL Ethernet (GEM2 and GEM3 RGMII Ethernet) on above Kria KR260 Board based Block Design. VIVADO automatically configure the PL Ethernet IP(AXI 1G/2.5G Ethernet Subsystem IP) and pulls the constraint for it from Board file. Similarly other interfaces can also be added on VIVADO block design.
 
 
 ### 2.3 Customizing the Subsystem in the Vivado IDE
