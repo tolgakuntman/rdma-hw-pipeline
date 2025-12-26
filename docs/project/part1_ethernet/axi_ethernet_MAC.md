@@ -233,7 +233,7 @@ Also as a sidenote, `ext_reset_in` pin of that reset block is connected to `pl_r
 
 ## 6. Clocks
 
-Clocks are another important part of this ethernet ip block. From the PG138 datasheet we can have a detailed information about clock pins and how to set them. There are four clocks for PL ethernet ip. These are shown in the table below:
+Clocks are another important part of PL ethernet IP. From the PG138 datasheet we can have a detailed information about clock pins and how to set them. There are four clocks for PL ethernet ip. These are shown in the table below:
 
 | Clock | Description |
 |--------|-------------|
@@ -294,16 +294,25 @@ KR260 RGMII mode **does not require connecting an external ref_clk**.
 
 ---
 
-### 6.4 `gtx_clk`
+### 6.4 `gtx_clk` — GMII/RGMII/SGMII 125 MHz Transmit Clock
 
-The most important clock for RGMII/GMII mode:
+`gtx_clk` is the **critical 125 MHz transmit clock** used by the Ethernet MAC when
+operating in GMII, RGMII, or SGMII modes.
 
-- 125MHz
-- Drives transmit timing
-- Used for statistics counters
-- Required by DP83867 PHY
+Functions:
 
-KR260 routes a 125MHz clock correctly from the Clocking Wizard.
+- Provides the **TX clock domain** for the MAC’s internal datapath.
+- Drives the GMII/RGMII transmit timing and synchronizes TX signals.
+- Used by the MAC to produce proper Ethernet timings at 1 Gbps.
+- Required for **RGMII operation** on KR260 (GEM2 → DP83867).
+
+On KR260 GEM2:
+
+- `gtx_clk` must be a **clean 125 MHz clock**, typically generated from the Clocking Wizard.
+- It feeds the AXI Ethernet Subsystem so the MAC can clock data toward the DP83867 PHY.
+
+This clock is **mandatory** for your PL Ethernet design.  
+Without `gtx_clk`, the MAC **cannot transmit** frames via RGMII.
 
 ---
 
