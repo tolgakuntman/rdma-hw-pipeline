@@ -81,14 +81,14 @@ I used GEM2 PL ethernet port for the project. Here is an image for the 4 etherne
 ![ports](images/ethernet_ports.png)
 
 
-### 2.3 Customizing the Subsystem in the Vivado IDE
-First of all, the most important two steps to do before being able to work with this ip block in our RDMA project were getting the license and setting board-based I/O constraints before starting the project as I already explained them. So after doing these two steps we can finally customize the block specifically for our board kria kr260.
-
+### 2.3 Checking the Settings of the PL Ethernet Subsystem in Vivado 
+The most important steps to do before being able to work with this ip block in our RDMA project were getting the license and setting board-based I/O constraints before starting the project. So after doing these two steps we can finally customize the block specifically for our board kria kr260. We can see the board based IO constraints that we previously generated on the first page.
 
 ![ethernet_board](images/ethernet_board.png)
-
-
-
+In the physical interface part we can see RGMII and 1gbps speed is preselected. The reason we cannot have any other option is because on the KR260, the GEM2 PL Ethernet port is hard-wired for RGMII. No other MAC–PHY physical interface (GMII, SGMII, MII, RMII) is supported on this port.
+![ethernet_board](images/phy_screen.png)
+The information for all ports is also written in Kria KR260 Robotics Starter Kit User Guide (UG1092).
+![ethernet_board](images/eth_ports.png)
 
 ## 3. AXI-Stream TX Path (Custom IP → MAC)
 
