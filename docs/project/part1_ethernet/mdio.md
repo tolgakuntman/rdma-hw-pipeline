@@ -1,11 +1,24 @@
 ## MDIO Management Interface
 
-The **MDIO (Management Data Input/Output)** interface is used by the AXI 1G/2.5G Ethernet Subsystem to **configure and monitor the external PHY** (DP83867 on the KR260) over a low-speed serial bus defined by IEEE 802.3 (Clause 22 / Clause 45).
+The **MDIO (Management Data Input/Output)** interface is used by the AXI 1G/2.5G Ethernet Subsystem to **configure and monitor the external PHY** (DP83867 on the KR260) over a low-speed serial bus. It is a Bi-directional management instruction/data signal that is sourced by the management station or the PHY during portions of communication. This interface is present in MII, GMII, RGMII and SGMII modes.
+
+The Management Data Input/Output (MDIO) component can be used to read and write the PHY control register. Each PHY can be monitored before operation and the connection status can be monitored during operation. These registers provide status and control information such as link status, speed ability, and selection, power down for low power consumption, duplex mode (full or half), auto-negotiation, fault signaling, and loopback. 
+
+![mdio](images/mdio.png)
+
+![mdio](images/mdio_ports.png)
+
+| Port | Description |
+|------|-------------|
+| `mdio_mdc` | MDIO clock |
+| `mdio_mdio_i` | PHY → MAC |
+| `mdio_mdio_o` | MAC → PHY |
+| `mdio_mdio_t` | Tristate enable |
 
 At a high level:
 
 - The **MAC** contains an **MDIO controller**.
-- Software (running on the PS) talks to the MAC via **`s_axi_lite`**.
+- Software (running on the PS) talks to the MAC via **`s_axi`** port we have on PL ethernet block.
 - The MAC’s MDIO controller then generates **MDC** and **MDIO** transactions towards the **DP83867 PHY**.
 - All PHY configuration (speed/duplex/auto-negotiation, RGMII delays, loopback, status reads, etc.) goes through this path.
 

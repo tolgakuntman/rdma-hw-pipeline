@@ -395,8 +395,8 @@ This is always present for **MII, GMII, RGMII, SGMII** modes.
 
 | Port | Description |
 |------|-------------|
-| `interrupt` | Global subsystem interrupt |
-| `mac_irq`  | TEMAC interrupt |
+| `interrupt` | Interrupt indicator for subsystem |
+| `mac_irq`  | TEMAC interrupt controller related to the MDIO interface |
 
 ![interrupt_pins](images/interrupt_pins.png)
 
