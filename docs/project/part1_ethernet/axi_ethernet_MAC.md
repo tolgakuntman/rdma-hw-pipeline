@@ -37,10 +37,13 @@ AXI Ethernet Subsystem (MAC) ←––––––– this block
      ↓ m_axis_rxs (status)
 AXIS_RX_TO_RDMA (Custom IP)
 ```
+Here is a picture of this MAC ip used in the final RDMA design.
+
+![ethernet](images/ethernet_MAC.png)
 
 ---
-## 2.VERY IMPORTANT LICENSE INFORMATION ABOUT THIS IP BLOCK
-
+## 2. VERY IMPORTANT INFORMATIONS BEFORE STARTING WITH THE MAC
+### 2.1 LICENSE INFORMATION ABOUT THIS IP BLOCK
 Note that an evaluation license (Hardware Evaluation) for Tri-Mode Ethernet MAC IP has been obtained. It will not compile as is.
 
 ![error](images/license_error.png)
@@ -52,7 +55,25 @@ To solve this issue we need the license for the ethernet ip block. From the foll
 Choose this option and the ethernet ip block will be functional.
 ![license](images/license.png)
 
+### 2.2 Creating VIVADO Projects with Kria - Manage Board Connection for PL ETHERNET
+
+
+
+
+
+
+### 2.3 Customizing the Subsystem in the Vivado IDE
+First of all, the most important two steps to do before being able to work with this ip block in our RDMA project were getting the license and setting board-based I/O constraints before starting the project as I already explained them. So after doing these two steps we can finally customize the block specifically for our board kria kr260.
+
+
+![ethernet_board](images/ethernet_board.png)
+
+
+
+
 ## 3. AXI-Stream TX Path (Custom IP → MAC)
+
+This part will be a quick summary to include all pin explanations in this section. These two tx channels will be explained in detail in the rxtx_to_rdma custom ip block.
 
 TX requires **two separate AXI4-Stream channels**:
 
@@ -76,9 +97,9 @@ Exactly **6 words** per Ethernet frame (Normal Transmit Mode).
 | `tkeep[3:0]` | Byte mask (always `0xF`) |
 | `tvalid` | Control word valid |
 | `tready` | MAC ready |
-| `tlast` | Asserted on word 5 |
+| `tlast` | Asserted on word 5 (6th txc word) |
 
-#### TXC Word Format (PG138 Table 2-27)
+#### TXC Word Format (from PG138 ethernet block datasheet)
 
 | Word | Purpose |
 |------|---------|
@@ -110,27 +131,16 @@ Actual Ethernet bytes are streamed here.
 - Data beats must be **continuous** until `tlast=1`
 - `tkeep` accurate on the last word
 - No gaps while `tvalid=1`
-- Correct little-endian byte packing:
-  
-tdata[7:0] = byte0
-tdata[15:8] = byte1
-tdata[23:16] = byte2
-tdata[31:24] = byte3
 
 ---
 
-### 3.3 Full TX Timing (Control → Data)
+### 3.3 Full TX Timing (AXI4-Stream Transmit Control → AXI4-Stream Transmit Data)
 
 TXC Stage:
-Word0 Word1 Word2 Word3 Word4 Word5 (tlast=1)
-↓ ↓ ↓ ↓ ↓ ↓
-[tready=1] → MAC accepts full TXC frame
+Word0 Word1 Word2 Word3 Word4 Word5 (tlast=1) [tready=1] → MAC accepts full TXC frame
 
 TXD Stage:
-Data0 Data1 ... DataN (tlast=1)
-↓ ↓ ↓
-[tready=1] → MAC transmits via RGMII
-
+Data0 Data1 ... DataN (tlast=1) [tready=1] → MAC transmits via RGMII
 
 If TXC does not finish cleanly:  
 **MAC will not raise `s_axis_txd_tready` → TXD is blocked forever.**
@@ -150,7 +160,7 @@ MAC sends **two streams** back-to-back:
 
 | Signal | Meaning |
 |--------|---------|
-| `tdata[31:0]` | Ethernet/IP/UDP/RDMA bytes |
+| `tdata[31:0]` | Ethernet/IP/RDMA bytes |
 | `tkeep[3:0]` | Last-word mask |
 | `tvalid` | Data valid |
 | `tlast` | End of frame |
@@ -175,7 +185,7 @@ Other words contain:
 - MAC filtering results  
 - Optional offload information  
 
-Your custom RDMA RX uses only **length**, which is correct.
+Our custom RDMA RX uses only the **length field**, which I did not implement in the final design.
 
 ---
 
@@ -188,9 +198,21 @@ Your custom RDMA RX uses only **length**, which is correct.
 | `axi_rxd_aresetn` | Reset for RXD |
 | `axi_rxs_aresetn` | Reset for RXS |
 
+All of these reset pins are connected to Processor System Reset block which is connected to the clock coming from PS `pl_clk0` from slowest_sync_clk pin. Like all other ip blocks in the block design, all four reset pins of the MAC are connected to this `peripheral_aresetn` pin of the reset block. So as a summary, since all ip blocks are driven by PS clock I connected them to the same clock domain reset.
+
+Also as a sidenote, `ext_reset_in` pin of that reset block is connected to `pl_resetn0` pin of PS.
+
+![error](images/reset_ip.png)
+
 ---
 
 ## 6. Clocks
+
+Clocks are another important part of this ethernet ip block. From the PG138 datasheet we can have a detailed information about clock pins and how to set them. 
+
+
+
+
 
 KR260 Part-1 clock structure:
 
