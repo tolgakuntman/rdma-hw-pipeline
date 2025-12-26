@@ -30,7 +30,7 @@ The AXI Ethernet Subsystem is logically divided into three layers:
 System position:
 
 ```
-DP83867 PHY
+DP83867 PHY (present in kr260 ethernet ports)
      ↓ RGMII
 AXI Ethernet Subsystem (MAC) ←––––––– this block
      ↓ m_axis_rxd (data)
@@ -40,6 +40,10 @@ AXIS_RX_TO_RDMA (Custom IP)
 Here is a picture of this MAC ip used in the final RDMA design.
 
 ![ethernet](images/MAC_ip.png)
+
+Inside of PL ethernet ip:
+
+![ethernet](images/insideMAC.png)
 
 ---
 ## 2. VERY IMPORTANT INFORMATIONS BEFORE STARTING WITH THE MAC
@@ -244,15 +248,13 @@ Clocks are another important part of PL ethernet IP. From the PG138 datasheet we
 
 ---
 
-### 6.1 `s_axi_lite_clk` — AXI4-Lite Control Clock
+### 6.1 `s_axi_lite_clk` — AXI4-Lite Clock
 
 This is the dedicated clock input for the AXI4-Lite control interface of the AXI Ethernet Subsystem.
 
 - Used exclusively for **register access** (configuration, status reads, option settings).
 - Drives the internal control path that configures the MAC and MDIO management logic.
-- Independent from the data-plane clock (`axis_clk`).
-- Must be stable and continuous during normal operation.
-- Typically connected to **PS `pl_clk0` (100 MHz)** on KR260 designs.
+- Connected to **PS `pl_clk0` (100 MHz)**.
 
 Only AXI-Lite configuration transactions use this clock.  
 It has **no impact** on TX/RX datapath timing.
@@ -272,51 +274,56 @@ It drives **all AXI-Stream interfaces**:
 Key properties:
 
 - Required for **TXC/TXD/RXD/RXS synchronization**.
-- Must match the internal MAC clocking (commonly **125 MHz** for 1 GbE).
-- All data-path FIFOs, frame boundaries, `tvalid/tready`, and `tlast` signaling occur on this clock.
+- The axis_clk signal should be connected to the same clock source as the AXI4-Stream interface.
+- All data-path FIFOs, `tvalid/tready`, and `tlast` signaling occur on this clock.
 - The MAC asserts `tready` only when the datapath clock domain is active and synchronized.
 
-On KR260 Ethernet (GEM2 → RGMII):
-
-- `axis_clk` originates from the Clocking Wizard (usually derived from 125 MHz PHY clock requirements).
-- This clock defines the timing of the **entire Ethernet streaming pipeline**.
-
-Without `axis_clk`, the MAC **cannot transmit or receive frames**.
+For our design:
+- Connected to **PS `pl_clk0` (100 MHz)**.
+- This clock defines the timing of the **entire Ethernet streaming pipeline** also all our ips connected to this clock so the datapath inside our RDMA logic is driven with the same 100 Mhz clock coming from PS.
 
 ---
 
-### 6.3 `ref_clk`
+### 6.3 `ref_clk` — Reference Clock 
 
-Stable global clock for PHY transceiver logic.  
-Used primarily in SGMII / 1000BASE-X modes.
-
-KR260 RGMII mode **does not require connecting an external ref_clk**.
+This is a stable global clock used by signal delay primitives and transceivers in those respective modes. The clock frequency is 200 MHz for 7 series FPGAs. For UltraScale/UltraScale+/Versalarchitecture, the frequency range is 300-1333 MHz for GMII and RGMII modes. Since kr260 is UltraScale+, I used 300 Mhz coming from the clocking wizard which uses som240_1_connector_hpa_clk0p_cl. This connection refers to the external PL reference clock provided by the KR260 oscillators.
 
 ---
 
-### 6.4 `gtx_clk` — GMII/RGMII/SGMII 125 MHz Transmit Clock
+### 6.4 `gtx_clk` — RGMII 125 MHz Transmit Clock
 
-`gtx_clk` is the **critical 125 MHz transmit clock** used by the Ethernet MAC when
-operating in GMII, RGMII, or SGMII modes.
+`gtx_clk` is often confused with the PHY-side GTX_CLK pin found on RGMII PHYs like the DP83867 present in our kr260 board. Although they share the same name, **they are completely different signals with different purposes.** This section explains the role of gtx_clk inside the AXI Ethernet Subsystem.
+
+![gtx_clk](images/gtx_clk.png)
+
+#### What gtx_clk REALLY is
 
 Functions:
-
 - Provides the **TX clock domain** for the MAC’s internal datapath.
 - Drives the GMII/RGMII transmit timing and synchronizes TX signals.
 - Used by the MAC to produce proper Ethernet timings at 1 Gbps.
 - Required for **RGMII operation** on KR260 (GEM2 → DP83867).
 
-On KR260 GEM2:
+`gtx_clk` must be a **pure 125 MHz clock**. It feeds the AXI Ethernet Subsystem so the MAC can clock data toward the DP83867 PHY and also uses this clock for its internal logic.
+It originates from the Clocking Wizard with the input connected to som240_1_connector_hpa_clk0p_cl. This pin refers to the external PL clock from the oscillators. This is very important specifically for `gtx_clk` because MAC expects a pure 125 Mhz clock not even a slightest difference from that value will create an error. That is why I spent lots of time trying to figure out how to get a pure 125 Mhz. Because initially, I used `pl_clk0` coming from the PS for the input clock of the clocking wizard and tried to derive `gtx_clk` and `ref_clk` from this clock. However, it is impossible to get exactly 125 Mhz with it. Because `pl_clk0` is ultimately derived from the MPSoC PS PLL outputs, which themselves come from the external 33.333 MHz oscillator on KR260, so `pl_clk0` itself is also not a pure 100 Mhz. So to solve this issue we used external clock with 25 Mhz from the board as an input for clocking wizard to derive pure 125 Mhz for the `gtx_clk` connection.
 
-- `gtx_clk` must be a **clean 125 MHz clock**, typically generated from the Clocking Wizard.
-- It feeds the AXI Ethernet Subsystem so the MAC can clock data toward the DP83867 PHY.
+This is the error you get if you try to use `pl_clk0` to feed the clocking wizard for `gtx_clk` connection.
 
-This clock is **mandatory** for your PL Ethernet design.  
-Without `gtx_clk`, the MAC **cannot transmit** frames via RGMII.
+![gtx_clk_error](images/gtx_clk_error.png)
+
+
+This clock never changes frequency, even when the actual link operates at 10 Mbps or 100 Mbps. The reason for that will be explained in detail in RGMII & PHY part. For now what you should know is to use 125 Mhz for this PL ethernet ip.
 
 ---
 
 ## 7. RGMII PHY Interface (DP83867)
+
+This is just a quick represantation for showing all ports of PL ethernet ip. The details will be in RGMII & PHY part.
+
+RGMII is the physical wiring between:
+AXI Ethernet Subsystem → DP83867 PHY
+
+![mdio](images/rgmii_ports.png)
 
 ### 7.1 RX (PHY → MAC)
 
@@ -332,13 +339,14 @@ Without `gtx_clk`, the MAC **cannot transmit** frames via RGMII.
 |------|-------------|
 | `rgmii_txd[3:0]` | Outgoing nibble |
 | `rgmii_tx_ctl` | TX_EN + TX_ER |
-| `rgmii_tx_clk` | MAC-generated TX clock (125 MHz) |
+| `rgmii_tx_clk` | MAC-generated TX clock |
 
-DP83867 is strapped in **RGMII-ID Mode (internal TX clock delay)**.
-
+No other PHY interface exists on GEM2.
 ---
 
-## 8. MDIO/MDC Management
+## 8. MDIO — `mdio` (Management Data Input Output)
+
+![mdio](images/mdio_ports.png)
 
 | Port | Description |
 |------|-------------|
@@ -354,109 +362,36 @@ Used for:
 - Speed/duplex configuration  
 - Reading BMSR/BMCR registers  
 
+This is always present for **MII, GMII, RGMII, SGMII** modes.
 ---
 
 ## 9. Interrupt
 
 | Port | Description |
 |------|-------------|
-| `mac_irq` | TX complete, RX complete, errors |
+| `interrupt` | Global subsystem interrupt |
+| `mac_irq`  | TEMAC interrupt |
 
-Unused in this project.
+![interrupt_pins](images/interrupt_pins.png)
+
+These two interrupt pins are connected to `xlconcat__0` and from there to pl_ps_irq0[1:0] pin of PS.
 
 ---
 
 ## 10. PHY Reset
 
+![phy_pin](images/phy_pin.png)
+
 | Port | Description |
 |------|-------------|
-| `phy_rst_n[0]` | Reset output to DP83867 |
+| `phy_rst_n[0:0]` | Reset output to DP83867 |
 
 ---
 
 ## 12. Summary
+This part was a detailed explanation for MAC pl ethernet ip customized for kr260 board.
 
 
-
-
----
-
-
-## 4.1 MDIO — `mdio`
-
-| Interface | Description |
-|-----------|-------------|
-| `mdio_mdc` | Clock to PHY |
-| `mdio_mdio_i` | Management input |
-| `mdio_mdio_o` | Management output |
-| `mdio_mdio_t` | Tristate control |
-
-This is always present for **MII, GMII, RGMII, SGMII** modes.
-
----
-
-## 4.2 MII — `mii`
-
-Available **only** in MII mode.  
-Not used on KR260.
-
----
-
-## 4.3 GMII — `gmii`
-
-Available **only** in GMII mode.  
-KR260 **does not use GMII** — wiring is RGMII only.
-
----
-
-## 4.4 RGMII — `rgmii`
-
-| Interface | Description |
-|----------|-------------|
-| `rgmii_txd[3:0]` | Data to PHY |
-| `rgmii_tx_ctl`   | TX control |
-| `rgmii_txc`      | 125MHz DDR clock |
-| `rgmii_rxd[3:0]` | Data from PHY |
-| `rgmii_rx_ctl`   | RX control |
-| `rgmii_rxc`      | DDR clock from PHY |
-
-**KR260 uses RGMII only.**  
-RGMII is the physical wiring between:
-AXI Ethernet Subsystem → DP83867 PHY → RJ45
-
-
-No other PHY interface exists on GEM2.
-
----
-
-## 4.5 SGMII — `sgmii`
-
-Only available if the subsystem is configured in SGMII mode.  
-KR260 PL Ethernet *does not route SGMII pins* for GEM2.
-
-(Not used.)
-
----
-
-
-## 6.1 Interrupts
-
-| Signal | Description |
-|--------|-------------|
-| `interrupt` | Global subsystem interrupt |
-| `mac_irq`  | TEMAC interrupt (primarily MDIO events) |
-
----
-
-# 7. PHY Reset
-
-| Signal | Direction | Description |
-|--------|-----------|-------------|
-| `phy_rst_n` | Out | Active-low PHY reset (held low 10ms after power-up, +5ms idle) |
-
-KR260 board design automatically ties this to the DP83867 reset pin.
-
----
 
 
 
