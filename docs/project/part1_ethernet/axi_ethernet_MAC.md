@@ -74,6 +74,7 @@ While creating VIVADO project for Kria Boards, there is "Connections --> Manage 
 As an example, i have added two PL Ethernet (GEM2 and GEM3 RGMII Ethernet) on above Kria KR260 Board based Block Design. You can drag from the board screen and place the PL GEM2 RGMII ETHERNET ip with external connections in your block design. VIVADO automatically configure the PL Ethernet IP(AXI 1G/2.5G Ethernet Subsystem IP) and pulls the constraint for it from Board file. 
 
 When selecting them via Board Connections:
+
 - Vivado automatically instantiates AXI 1G/2.5G Ethernet Subsystem (the MAC)
 - It automatically wires RGMII signals
 - It automatically imports the correct constraints like pin locations, I/O standards, RGMII timing requirements
@@ -103,6 +104,7 @@ The AXI Ethernet Subsystem exposes a full AXI4-Lite slave interface for software
 
 ### 3.1 Why AXI-Lite (`s_axi`) Is Required in Our Project
 In our RDMA project, the AXI-Lite interface is responsible for:
+
 - enabling TX and RX paths (XAE_TRANSMITTER_ENABLE_OPTION, XAE_RECEIVER_ENABLE_OPTION)
 - setting MAC address for PHY
 - initializing and managing the PHY via MDIO
@@ -112,6 +114,7 @@ In our RDMA project, the AXI-Lite interface is responsible for:
 - starting the MAC after configuration
 
 Without AXI-Lite:
+
 - MAC never turns on
 - PHY never negotiates link
 - m_axis_rxd / m_axis_rxs remain idle forever
@@ -352,6 +355,7 @@ Key properties:
 - The MAC asserts `tready` only when the datapath clock domain is active and synchronized.
 
 For our design:
+
 - Connected to **PS `pl_clk0` (100 MHz)**.
 - This clock defines the timing of the **entire Ethernet streaming pipeline** also all our ips connected to this clock so the datapath inside our RDMA logic is driven with the same 100 Mhz clock coming from PS.
 
@@ -370,6 +374,7 @@ This is a stable global clock used by signal delay primitives and transceivers i
 ![gtx_clk](images/gtx_clk.png)
 
 Functions:
+
 - Provides the **TX clock domain** for the MAC’s internal datapath.
 - Drives the GMII/RGMII transmit timing and synchronizes TX signals.
 - Used by the MAC to produce proper Ethernet timings at 1 Gbps.
