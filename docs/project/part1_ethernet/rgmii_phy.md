@@ -1,6 +1,6 @@
-# RGMII PHY on KR260 (DP83867 + AXI Ethernet)
+# RGMII & DP83867IR PHY
 
-This chapter documents the RGMII-based Ethernet PHY used in the KR260 PL Ethernet interface and how it is configured and used together with the **AXI 1G/2.5G Ethernet Subsystem (PG138)** and our Vitis software.
+This chapter documents the RGMII-based Ethernet PHY used in the KR260 PL Ethernet interface and how it is configured and used together with the **AXI 1G/2.5G Ethernet Subsystem (PG138)** and our Vitis software. 
 
 The focus is on:
 

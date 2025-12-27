@@ -471,7 +471,7 @@ These two interrupt pins are connected to `xlconcat_0` and from there to pl_ps_i
 ---
 
 ## 12. Summary
-This section provides a detailed explanation of the MAC PL Ethernet IP customized for the KR260 board. Every single port of this IP is described.
+This section provides a detailed explanation of the MAC PL Ethernet IP customized for the KR260 board. Every single port of this IP is explained.
 
 
 
