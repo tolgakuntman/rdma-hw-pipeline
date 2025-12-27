@@ -233,6 +233,7 @@ What we’re aiming for with 0x1340 is keep PHY in auto-negotiation + full-duple
 For BMSR, we print the BMSR value before PHY autoneg enable/restart and XAxiEthernet_Start and the result we get is 0x7949 = 0111 1001 0100 1001. Set bit positions: 14, 13, 12, 11, 8, 6, 3, 0.
 
 Now decode 0x7949:
+
 - Bit 14 = 1 → Device can do 100BASE-TX full duplex
 - Bit 13 = 1 → Device can do 100BASE-TX half duplex
 - Bit 12 = 1 → Device can do 10BASE-T full duplex
@@ -243,22 +244,27 @@ Now decode 0x7949:
 - Bit 0 = 1 → Extended register capabilities present
 
 And the important zero bits:
+
 - Bit 5 = 0 → Auto-negotiation not complete yet at this read
 - Bit 2 = 0 → No valid link yet (link is down)
 
 After PHY autoneg enable/restart and XAxiEthernet_Start we get BMSR = 0x796D = 0111 1001 0110 1101. Now only these two bits are flipped:
+
 - Bit 5 = 1 → Auto-negotiation is complete
 - Bit 2 = 1 → Valid link established
 
 Here are also some extra information from the datasheet:
 
 **Restart Auto-Negotiation**
+
 If a link is established by successful Auto-Negotiation and then lost, the Auto-Negotiation process resumes to determine the configuration for the link. This function confirms that a link can be re-established if the cable becomes disconnected and reconnected. After Auto-Negotiation is completed, the process can be restarted at any time by writing 1 to bit 9 of the BMCR. A restart Auto-Negotiation request from any entity, such as a management agent, causes DP83867 to halt data transmission or link pulse activity until the break_link_timer expires. Consequently, the Link Partner goes into link fail mode and the resume Auto-Negotiation. The DP83867 resumes Auto-Negotiation after the break_link_timer has expired by transmitting FLP (Fast Link Pulse) bursts.
 
 **Enabling Auto-Negotiation Through Software**
+
 If Auto-Negotiation is disabled by MDIO access, and the user desires to restart Auto-Negotiation, this can be accomplished by software access. Bit 12 of BMCR can be cleared and then set for Auto-Negotiation operation to take place. If Auto-Negotiation is disabled by strap option, Auto-Negotiation can not be reenabled.
 
 **Auto-Negotiation Complete Time**
+
 Parallel detection and Auto-Negotiation typically take 2-3 seconds to complete. In addition, Auto-Negotiation with next page exchange takes approximately 2-3 seconds to complete, depending on the number of next pages exchanged. 
 
 
