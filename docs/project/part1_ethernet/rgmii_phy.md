@@ -5,7 +5,7 @@ This chapter documents the RGMII-based Ethernet PHY used in the KR260 PL Etherne
 The focus is on:
 - Different types of Media-independent interfaces (MII) and their properties
 - What RGMII actually is (signals, timing, clocking).
-- How the **TI DP83867IR** PHY on the KR260 is wired and configured.
+- How the **The Texas Instruments DP83867IR** PHY on the KR260 is wired and configured.
 - How the PHY and MAC (AXI Ethernet IP) interact to produce a working 1 Gbps link.
 
 The PHY can be explained through its two main interfaces: MDIO and RGMII. I already have a separate section dedicated to MDIO, where I describe how the PHY is configured and how its status is monitored. This section will focus on RGMII, which is the primary data path between the MAC and the PHY and the most important connection between them. That is why I chose to include PHY in the title of this section instead of MDIO.
@@ -44,14 +44,10 @@ Each Ethernet interface consists of the following hardware path:
    Converts copper Ethernet signaling into digital RGMII signals. Handles: Line coding / decoding , Auto-negotiation, and Speed selection (10/100/1000).
 
 3. **RGMII interface into FPGA PL**  
-   
-   - `rgmii_td[3:0]`, `rgmii_tx_ctl`, `rgmii_txc`  
-   - `rgmii_rd[3:0]`, `rgmii_rx_ctl`, `rgmii_rxc`  
-
-   ![rgmii](images/rgmii_ports.png)
+      `rgmii_td[3:0]`, `rgmii_tx_ctl`, `rgmii_txc`  
+      `rgmii_rd[3:0]`, `rgmii_rx_ctl`, `rgmii_rxc`  
 
 4. **AXI 1G/2.5G Ethernet Subsystem (MAC)** 
-
    The MAC consumes RGMII signals and exposes:
    - AXI-Stream TX/RX interfaces  
    - MDIO management  
@@ -59,28 +55,27 @@ Each Ethernet interface consists of the following hardware path:
    - MAC address filtering  
  
 
+![phy_app](images/PHY_application.png)
+
 ---
 
 ### 1.3 Relevant PHY Hardware Features
 
-The TI DP83867 device provides several features essential to KR260 RGMII operation:
+The DP83867 is a single port 10/100/1000 Ethernet PHY, that supports connections to an Ethernet MAC via RGMII or GMII. Connections to the Ethernet media are made via the IEEE 802 3 defined Media Dependent Interface. DP83867IRRGZ/CRRGZ support only RGMII.
+
+The TI DP83867IR device provides several features essential to KR260 RGMII operation:
 
 - **IEEE 802.3 10/100/1000 Mb/s support**
 - **RGMII interface** with optional internal clock delays
 - Internal PLL locked to a **25 MHz reference crystal**
 - **MDIO/MDC** interface for configuration and status
-- Strap pins determining:
+   
+   Strap pins determining:
   - PHY address  
   - RGMII/SGMII mode  
   - TX/RX delay defaults  
   - Autonegotiation behavior  
 
-On the KR260, straps configure the PHY for:
-
-- **RGMII mode enabled**
-- **Default RGMII clock delays applied** (board-level design choice)
-- A fixed and known **PHY address**
-- Standard autonegotiation enabled at power-up
 
 ---
 
@@ -90,8 +85,7 @@ Inside the Vivado block design:
 
 - The DP83867 RGMII pins route directly to the **AXI 1G/2.5G Ethernet Subsystem**.
 - The MAC is configured explicitly for **RGMII operation**.
-- `ref_clk` (125 MHz) for the MAC is supplied via a Clocking Wizard.
-- `phy_rst_n` is controlled through the reset chain.
+- `gtx_clk` (125 MHz) for the MAC is supplied via a Clocking Wizard.
 - MDIO is connected for PHY management.
 
 Later sections build on this hardware foundation by explaining RGMII signaling (Section 2), Vivado interfacing (Section 3), MDIO runtime configuration (Section 4), and PHY clocking/delay behavior (Section 5).
@@ -100,13 +94,15 @@ Later sections build on this hardware foundation by explaining RGMII signaling (
 
 ## 2. What is RGMII?
 
-RGMII (**Reduced Gigabit Media Independent Interface**) is a compact, high-speed digital interface used between an Ethernet **MAC** (inside the FPGA) and an external **PHY** (such as the DP83867 on the KR260).
-
-Compared to the older GMII standard, RGMII reduces pin count, increases interface efficiency, and uses **double-data-rate (DDR)** signaling to achieve Gigabit throughput while still operating on only 4 data lines per direction.
+RGMII (Reduced Gigabit Media Independent Interface) is one member of the broader MII family of MAC–PHY interfaces, which define how an Ethernet MAC connects to an external PHY. The original MII (Media Independent Interface) supported 10/100 Mbps using a 4-bit data bus clocked at 25/2.5 MHz. As speeds increased, GMII (Gigabit MII) expanded this to an 8-bit bus clocked at 125 MHz, allowing 1 Gbps but requiring 24 signals—too many for compact boards. To reduce complexity, several “reduced” variants were introduced: RMII (Reduced MII) for 10/100 Mbps using only 2 data lines + 50 MHz clock, and RGMII (Reduced GMII) for 1 Gbps using only 4 data lines per direction. RGMII achieves the same throughput as GMII by using **double-data-rate (DDR)** signaling —transmitting data on both clock edges— cutting the pin count roughly in half.
 
 ---
 
 ### 2.1 RGMII Signal Set
+
+**From the datasheet:**
+
+The Reduced Gigabit Media Independent Interface (RGMII) is designed to reduce the number of pins required to interconnect the MAC and PHY (12 pins for RGMII relative to 24 pins for GMII). To accomplish this goal, the data paths and all associated control signals are reduced and are multiplexed. Both rising and trailing edges of the clock are used. For Gigabit operation the GTX_CLK and RX_CLK clocks are 125MHz, and for 10- and 100Mbps operation, the clock frequencies are 2.5MHz and 25MHz, respectively.
 
 RGMII reduces the classic GMII interface from **8-bit data + multiple control pins** down to:
 
@@ -125,587 +121,34 @@ This effectively transfers 8 bits every 8 ns at 125 MHz → **1.0 Gbps**.
 
 | Signal | Description |
 |--------|-------------|
-| `TXD[3:0]` | 4-bit transmit data bus (DDR) |
-| `TX_CTL` | Encodes TX_EN and TX_ER |
-| `TXC` | 125 MHz transmit clock generated by the MAC |
+| `rgmii_td[3:0]` | 4-bit transmit data bus (DDR) |
+| `rgmii_tx_ctl` | Encodes TX_EN and TX_ER |
+| `rgmii_txc` | 125 MHz transmit clock generated by the MAC |
 
 #### Receive Path (PHY → MAC)
 
 | Signal | Description |
 |--------|-------------|
-| `RXD[3:0]` | 4-bit receive data bus (DDR) |
-| `RX_CTL` | Encodes RX_DV and RX_ER |
-| `RXC` | 125 MHz receive clock generated by the PHY |
+| `rgmii_rd[3:0]` | 4-bit receive data bus (DDR) |
+| `rgmii_rx_ctl` | Encodes RX_DV and RX_ER |
+| `rgmii_rxc` | 125 MHz receive clock generated by the PHY |
 
-> **NOTE – Add image:**  
-> Insert the DP83867 datasheet timing diagram showing rising/falling-edge data sampling on TXC/RXC.
+These pins are visible in PL ethernet block.
+
+![rgmii_mac](images/rgmii_MAC.png)
+
 
 ---
 
 ### 2.2 RGMII Speeds and Clocking Behavior
 
-The DP83867 PHY supports **10 Mbps**, **100 Mbps**, and **1000 Mbps** operation over copper.  
-However, on the **RGMII side**, the MAC and PHY communicate using a clock that is always treated as **125 MHz** for Gigabit timing.
-
 #### 1 Gbps Operation
-
-For **1 Gbps**:
-
-- The MAC drives/receives data at **125 MHz DDR** on `TXD[3:0]` / `RXD[3:0]`.
-- Each 8 ns clock period carries 8 bits (4 on rising edge, 4 on falling edge).
+- The MAC drives/receives data at **125 MHz DDR** on `rgmii_td[3:0]` / `rgmii_rd[3:0]`.
+- Each 8 ns clock period carries 8 bits.
 - Effective data rate: **1.0 Gbit/s** on the digital RGMII bus.
 
 #### 100 Mbps and 10 Mbps Operation
-
-When the PHY negotiates **100 Mbps** or **10 Mbps** with the link partner:
-
-- The PHY still uses its **25 MHz reference clock** internally for PLLs and clock generation.
-- The **AXI Ethernet Subsystem still expects a 125 MHz `gtx_clk` / `ref_clk` input** for its internal timing in RGMII mode.
-- The PHY **rate-adapts internally**, effectively repeating/spacing data so that the MAC continues to see a valid RGMII stream, even though the line rate on the cable is lower.
-
-From the MAC’s point of view:
-
-- RGMII timing remains based on **125 MHz DDR**, not on 25 MHz or 2.5 MHz.
-- The PHY is responsible for translating between the 125 MHz RGMII domain and the actual copper line speed.
-
-This is why our Clocking Wizard always generates a **125 MHz `gtx_clk` / `ref_clk`** for the AXI Ethernet IP, regardless of the negotiated link speed.
-
-
-### 2.3 Why RGMII Is Used on KR260
-
-RGMII provides several advantages ideal for the KR260:
-
-- High throughput (1 Gbps)  
-- Low pin count (12 signals instead of >25 for GMII)  
-- Standard PHY support (DP83867)  
-- Clean integration with the AXI 1G/2.5G Ethernet Subsystem  
-- Well-supported by Vivado and Vitis  
-
-RGMII is the industry-standard way to connect FPGA MAC IP to external RJ45 PHYs in embedded boards.
-
----
-
-## 3. AXI Ethernet ↔ DP83867 Connection on KR260
-
-The KR260 uses a direct, point-to-point digital connection between the **AXI 1G/2.5G Ethernet Subsystem (MAC)** in the PL and the **DP83867 Gigabit PHY** on the carrier card.  
-This section explains how these two components interface electrically and logically.
-
----
-
-### 3.1 MAC Side — AXI 1G/2.5G Ethernet Subsystem
-
-The AXI Ethernet Subsystem (PG138) exposes a full RGMII interface, clock ports, and management signals.  
-In RGMII mode, the important ports are:
-
-#### **RGMII Transmit (MAC → PHY)**
-
-- `rgmii_txd[3:0]` — 4-bit TX data bus (DDR)
-- `rgmii_tx_ctl` — Encodes TX_EN and TX_ER
-- `rgmii_txc` — 125 MHz TX clock (driven by MAC)
-
-#### **RGMII Receive (PHY → MAC)**
-
-- `rgmii_rxd[3:0]` — 4-bit RX data bus (DDR)
-- `rgmii_rx_ctl` — Encodes RX_DV and RX_ER
-- `rgmii_rxc` — 125 MHz RX clock (driven by PHY)
-
-#### **Management & Reset**
-
-- `mdio_mdc` — MDIO clock
-- `mdio_mdio` — Bidirectional MDIO data
-- `phy_rst_n` — Active-low reset signal to the PHY
-
-These pins are exposed directly on the block diagram and are routed to the carrier card’s RGMII interface pins.
-
-> **NOTE – Add image:**  
-> Insert a screenshot of the AXI Ethernet Subsystem in Vivado with the RGMII port expanded.
-
-Internally, the AXI Ethernet Subsystem provides:
-
-- A full hardware MAC implementation  
-- FCS generation and checking  
-- AXI-Stream TX/RX interfaces  
-- Integration with the MAC-layer MIIM block (MDIO controller)  
-- Optional flow-control and pause frame support  
-
-These functions are discussed in later sections when documenting the RX pipeline.
-
----
-
-### 3.2 PHY Side — TI DP83867 Gigabit Ethernet PHY
-
-The **DP83867** is a high-performance copper PHY used widely in embedded and FPGA-based Ethernet systems.  
-Key features from the datasheet include:
-
-- IEEE 802.3 compliant **10/100/1000 Mbps** operation
-- **RGMII** and optional **SGMII** MAC-side interfaces
-- Integrated **ADC, DSP, echo cancellers, and scramblers** for copper Ethernet
-- Internal PLL fed by a **25 MHz reference crystal**
-- Full **Auto-Negotiation** (speed/duplex)
-- **MDIO configuration registers** (standard + vendor-specific)
-- Strap-based configuration at power-up:
-  - RGMII / SGMII mode
-  - Internal TX/RX clock delays
-  - PHY address
-  - Auto-negotiation defaults
-  - LED modes
-
-> **NOTE – Add image:**  
-> Insert the DP83867 internal block diagram from the datasheet showing the RGMII/SGMII/MII subsystem.
-
----
-
-### 3.3 KR260 Strap Configuration
-
-On the KR260, the DP83867 PHY is pre-configured via strap resistors so that it powers up in a known and correct mode:
-
-- **RGMII mode enabled**  
-- **SGMII disabled**  
-- **PHY address fixed** (matches `PHY_ADDR_CONFIG` used in Vitis)  
-- **Internal clock delay settings selected by board design**  
-- **Auto-negotiation enabled by default**
-
-Because the board handles strap configuration:
-
-- We **do not** manually configure RGMII mode via vendor registers.  
-- We **only** use MDIO for:
-  - Enabling/restarting auto-negotiation  
-  - Polling link status  
-  - Optional debugging  
-
-The PHY’s default strap configuration is fully compatible with the AXI Ethernet Subsystem in RGMII mode.
-
----
-
-### 3.4 Electrical Connection Summary
-
-The connection between MAC ↔ PHY is **direct**, with no intermediate logic:
-
-| AXI Ethernet MAC | DP83867 PHY |
-|------------------|-------------|
-| `rgmii_txd[3:0]` | TXD[3:0] |
-| `rgmii_tx_ctl`   | TX_CTL |
-| `rgmii_txc`      | TXC |
-| `rgmii_rxd[3:0]` | RXD[3:0] |
-| `rgmii_rx_ctl`   | RX_CTL |
-| `rgmii_rxc`      | RXC |
-| `mdio_mdc`       | MDC |
-| `mdio_mdio`      | MDIO |
-| `phy_rst_n`      | RESETn |
-
-This wiring is exactly what allows frames from the outside world to enter the PL and be processed by the custom RX logic documented in later sections.
-
----
-
-
-
-## 4. PHY Management via MDIO
-The DP83867 Gigabit Ethernet PHY on the KR260 is controlled through the MDIO management interface.
-All MDIO timing, protocol formatting, and communication is handled entirely inside the AXI 1G/2.5G Ethernet Subsystem, so software does not manually control the MDIO line manually.
-
-This section explains:
-
--How MDIO transactions actually work
--How the AXI Ethernet MIIM block handles reads/writes
--Which registers we use (BMCR/BMSR)
--How autonegotiation and link polling fit into the bring-up sequence
-
-### 4.1 MDIO Interface
-**MIIM Hardware (Management Logic)**
-The AXI Ethernet Subsystem includes a dedicated MIIM (Media Independent Interface Management) block.
-This hardware engine automatically performs:
-
-1. Drives management data clock (MDC)
-2. Sends management data input output (MDIO) read/write frame  
-3. Receives register data from PHY  
-4. Passes it to software  
-
-Because of this, software never manually toggles MDC/MDIO pins.
-We simply call the driver functions, and the MAC does all the low-level work.
-
-**Vitis Access Functions**
-To read or write a PHY register, software uses exactly these functions:
-```c
-XAxiEthernet_PhyRead(&EthInst, PhyAddr, RegNum, &Value);
-XAxiEthernet_PhyWrite(&EthInst, PhyAddr, RegNum, Value);
-```
-- When these are called, the MIIM core:
-- Generates MDC
-- Drives or samples MDIO
-- Executes the required IEEE 802.3 frame
-- Waits for the transaction to complete
-- Returns the result to software
-
-NOTE (screenshot):
-Insert a cropped diagram from PG138 showing the MIIM block feeding MDC/MDIO.
-This visually explains that the AXI Ethernet IP — not the CPU — is responsible for MDIO timing.
----
-
-### 4.2 Essential MDIO Registers: BMCR and BMSR
-
-All IEEE-compliant PHYs implement:
-
-- **BMCR (Reg 0)** — Basic Mode Control Register  
-- **BMSR (Reg 1)** — Basic Mode Status Register  
-
-These two registers alone provide nearly everything required for link bring-up.
-
-#### Register Definitions
-
-```c
-#define PHY_REG_BMCR        0   // Control
-#define PHY_REG_BMSR        1   // Status
-
-#define BMCR_AUTONEG_EN     0x1000  // Enable Autonegotiation
-#define BMCR_RESTART_AN     0x0200  // Restart Autonegotiation
-
-#define BMSR_LINK_STATUS    0x0004  // 1 = Link Up
-```
-
----
-
-### 4.3 BMCR — Basic Mode Control Register (Reg 0)
-BMCR controls the fundamental PHY behavior:
-| Bit | Name                   | Description                                   |
-|-----|------------------------|-----------------------------------------------|
-| 15  | Reset                  | Forces a soft reset of the PHY               |
-| 13  | Speed Select (MSB)     | 1 Gbps selection (device dependent)          |
-| 12  | Autonegotiation Enable | Allows PHY to negotiate speed/duplex         |
-| 9   | Restart Autonegotiation| Triggers new autonegotiation cycle           |
-| 8   | Duplex Mode            | 1 = Full Duplex                              |
-
-#### Initialization Example
-During bring-up, we always enable autonegotiation and force a restart:
-```c
-u16 Bmcr;
-
-XAxiEthernet_PhyRead(&EthInst, PhyAddr, PHY_REG_BMCR, &Bmcr);
-Bmcr |= BMCR_AUTONEG_EN | BMCR_RESTART_AN;
-XAxiEthernet_PhyWrite(&EthInst, PhyAddr, PHY_REG_BMCR, Bmcr);
-```
-
-Meaning:
-
-- Autonegotiation is guaranteed to be active
-- PHY immediately renegotiates speed/duplex with link partner
-- Prevents mismatch issues after reset or cable reconnects
-- Required for stable RGMII bring-up  
-This is standard practice for any RGMII PHY bring-up.
----
-
-### 4.4 BMSR — Basic Mode Status Register (Reg 1)
-
-BMSR provides PHY link state and basic capability information.
-
-| Bit | Name       | Description                  |
-|-----|------------|------------------------------|
-| 2   | Link Status| 1 = Link Up, 0 = Link Down   |
-
-#### Why Do We Double-Read BMSR?
-
-Many PHYs implement latched link bits:
-The first read clears the latch, and only the second read returns the real-time link status.
-That is why the polling code looks like this:
-
-```c
-u16 Bmsr;
-
-for (int i = 0; i < 100; i++) {
-
-    XAxiEthernet_PhyRead(&EthInst, PhyAddr, PHY_REG_BMSR, &Bmsr);
-    XAxiEthernet_PhyRead(&EthInst, PhyAddr, PHY_REG_BMSR, &Bmsr);  // real current value
-
-    if (Bmsr & BMSR_LINK_STATUS) {
-        xil_printf("LINK UP, BMSR = 0x%04x\r\n", Bmsr);
-        break;
-    }
-
-    usleep(100000);  // 100 ms
-}
-
-```
-
-This provides up to 10 seconds for the cable and remote device to negotiate a link.
-
----
-
-### 4.5 Why BMCR/BMSR Matter So Much
-These two registers are the foundation of all Ethernet PHY bring-up:
-- Autonegotiation control lives in BMCR
-- Real-time link state comes from BMSR
-- Any mismatch / negotiation issue shows up in these registers
-- Debugging RGMII timing problems almost always starts by checking BMSR
-- After reset, BMCR_RESTART_AN is mandatory for stable links
-Even though DP83867 has many extended registers, almost all essential behavior depends on BMCR/BMSR.
-
----
-
-### 4.6 MAC Speed vs PHY Autonegotiation
-A critical point:
-**The PHY negotiates speed with the link partner, but the MAC does NOT auto-update its speed.**
-AXI Ethernet does not adapt to PHY speed automatically. Therefore, the MAC must be explicitly configured:
-
-```c
-XAxiEthernet_SetOperatingSpeed(&EthInst, XAE_SPEED_1000_MBPS);
-```
-In our project we always **forced the MAC to 1 Gbps mode**, because:
-- The DP83867 and KR260 are fully gigabit-capable
-- Both of our kr260 aimed gigabit ethernet
-
-If someone wanted to support 10/100 as well, they would:
-1. Read vendor-specific PHY registers to learn the negotiated speed
-2. Call XAxiEthernet_SetOperatingSpeed() accordingly
-3. Potentially adjust MAC flow-control settings
-
-This was not needed in our system.
-
-## 5. DP83867 RGMII Mode & Internal Clock Delays
-
-The Texas Instruments **DP83867** is the Gigabit PHY used on the KR260 PL Ethernet ports.  
-RGMII timing is extremely sensitive, and the DP83867 includes **multiple internal delay mechanisms** and **strap-based configuration** that determine how TX/RX clocks and data are aligned at power-up.
-
-This section explains:
-
-- How the DP83867 implements **RGMII mode**  
-- How **clock delays** are inserted (internal vs board-level)  
-- How **strap pins** configure default behavior  
-- How to verify and override these settings via MDIO registers  
-- What KR260 specifically uses, based on schematics and UG1092  
-
----
-
-### 5.1 Why RGMII Needs Clock Delays
-
-RGMII sends data in **DDR (double-data-rate)** form over only 4 data bits.  
-This saves pins, but creates strict timing requirements:
-
-- The **TXC** and **RXC** clocks must be delayed relative to the TXD/RXD data lines  
-- Required skew = **1.8 ns to 2.0 ns** (typical per IEEE 802.3 RGMII spec)
-
-If the clock edge arrives too early, the MAC/PHY samples data **before it becomes stable** → corrupted frames, errors, or no link.
-
-Therefore:
-
-**Either the PCB designer OR the PHY must insert delay.**  
-KR260 uses a combination of **PHY internal delays** defined by strap pins.
-
----
-
-### 5.2 Two Solutions for RGMII Delay
-
-RGMII requires timing skew. There are two standard approaches:
-
-#### **1) Board-Level Delay (External)**  
-PCB trace routing physically delays the TXC/RXC clock by extra length:
-
-- ~300 mil difference (depends on PCB dielectric)
-- Requires tight control of board stack-up
-
-#### **2) PHY Internal Delay (ID Mode)**  
-DP83867 includes configurable delay elements:
-
-- TX clock delay (TXD-to-TXC skew)
-- RX clock delay (RXD-to-RXC skew)
-
-These can be enabled via:
-
-- Strap pins (at reset)  
-- MDIO registers (after boot)
-
-KR260 uses **internal PHY delays enabled by default**, meaning the carrier card does **NOT** rely on special PCB skew routing.
-
----
-
-### 5.3 DP83867 Straps Relevant to RGMII
-
-During reset, the DP83867 samples several pins that determine:
-
-- PHY Address  
-- RGMII vs SGMII mode  
-- TX Clock Delay Enable  
-- RX Clock Delay Enable  
-- Auto-negotiation defaults  
-- Master/Slave mode (for 1000Base-T)
-
-Strapped values → Stored into internal "strap latch" registers.  
-These values become active **before any MDIO access happens**.
-
-#### Common RGMII-related straps:
-
-| Strap Function | Purpose |
-|----------------|---------|
-| **RGMII_EN** | Enables RGMII mode instead of MII/GMII/SGMII |
-| **RX_CLK_DELAY_EN** | Enables internal delay on RXC |
-| **TX_CLK_DELAY_EN** | Enables internal delay on TXC |
-| **RGMII_ID_MODE** | Combined delay mode (TI specific) |
-
-KR260 documentation confirms:
-
-- RGMII mode is enabled by default  
-- Both RX and TX clock delays are enabled via straps  
-- PHY address is predetermined by board
-
-Thus: **No manual MDIO writes are necessary to bring up RGMII on KR260.**
-
----
-
-### 5.4 DP83867 RGMIICTL Register (0x0032)
-
-Even though straps configure defaults, the DP83867 provides runtime control via **MDIO Register 0x0032 (RGMIICTL)**.
-
-This register determines:
-
-- Enable/Disable internal TX/RX delays  
-- Additional fine-grain delay controls  
-- RGMII vs SGMII mode  
-- Clock skew amounts (coarse + fine tuning)
-
-#### Register Layout (from TI datasheet)
-
-```
-Address: 0x0032 — RGMIICTL
- Bit15 ..... Bit0
-
- Example fields:
- - RGMII_EN
- - RX_CLK_DELAY_EN
- - TX_CLK_DELAY_EN
- - CLK_DELAY_CTRL bits
-```
-
-#### Reading the register:
-
-```c
-u16 rgmii;
-XAxiEthernet_PhyRead(&EthInst, PhyAddr, 0x0032, &rgmii);
-xil_printf("RGMIICTL = 0x%04x\n", rgmii);
-```
-
-#### Modifying delay settings:
-
-```c
-rgmii |= (1 << 5);  // hypothetical RX delay enable bit (depends on datasheet)
-XAxiEthernet_PhyWrite(&EthInst, PhyAddr, 0x0032, rgmii);
-```
-
-> **NOTE:** Bit definitions vary slightly between DP83867IR, DP83867CS, etc.  
-> KR260 uses **DP83867IR** variant.
-
----
-
-### 5.5 Internal Delay Paths
-
-The PHY contains delay lines implemented using programmable **DLL/PLL timing elements**.
-
-Internal delays include:
-
-- **RX Clock Delay**  
-- **TX Clock Delay**  
-- Optional **RX Data Delay**  
-- Optional **TX Data Delay**  
-
-#### Typical delay values:
-
-| Delay Type | Typical Value |
-|-----------|----------------|
-| TXC internal delay | ~2.0 ns |
-| RXC internal delay | ~2.0 ns |
-| Fine delay adjustment | +0.07 ns / step (approx.) |
-
-#### Why delays differ?
-
-- Manufacturing variability  
-- Different RGMII routing on MAC side  
-- Cable EMI effects  
-- MAC implementation tolerances
-
-The DP83867 provides enough configurability to compensate for all of these.
-
----
-
-### 5.6 How KR260 Uses DP83867 Delays
-
-The KR260 schematics and UG1092 confirm:
-
-- The carrier board does **not** implement external RGMII skew routing  
-- TI PHY **internal delay** is used for both directions  
-- Strap pins configure:
-  - RGMII mode  
-  - TX clock internal delay  
-  - RX clock internal delay  
-
-Therefore:
-
-**You do NOT need to touch RGMIICTL unless debugging or experimenting.**  
-Basic bring-up (BMCR/BMSR autonegotiation) is sufficient.
-
----
-
-### 5.7 When You *Would* Modify RGMIICTL
-
-There are rare cases where manual MDIO configuration is required:
-
-#### 1. MAC Cannot Lock to RXC  
-Symptoms:
-- Link up but zero packets received  
-- AXI Ethernet reports RX errors  
-- AXI-Stream handshake seems frozen  
-
-Possible fix:
-- Increase RXC delay  
-- Reduce RXC delay  
-- Enable additional data-only delay  
-
-#### 2. TX Packets Sent but Switch Reports CRC Errors  
-Symptoms:
-- Wireshark shows FCS errors  
-- Partner device logs RX CRC faults  
-
-Possible fix:
-- Adjust TXC skew  
-- Align data transitions relative to clock  
-
-#### 3. Custom or long RGMII routing (not applicable to KR260)
-
-If manually adjusting:
-
-```c
-// Example only — actual bit positions depend on DP83867 revision
-rgmii &= ~(1 << 4);   // disable TX delay
-rgmii |=  (1 << 1);   // enable RX delay
-XAxiEthernet_PhyWrite(&EthInst, PhyAddr, 0x0032, rgmii);
-```
-
----
-
-### 5.8 Verifying Internal Delay Status (Debug)
-
-Key debug steps:
-
-#### **1. Read RGMIICTL (0x0032)**  
-Verify TX/RX delay bits match strap expectations.
-
-#### **2. Read STRAP_STS (vendor register)**  
-This shows latched strap configurations.
-
-#### **3. Scope TXC/RXC on an oscilloscope**  
-You should see:
-
-- **125 MHz** clock  
-- Clean waveform, ~1.8–2.0 ns delay relative to data pins
-
-If TXC equals data with no skew → delays are OFF → must enable via MDIO.
-
-#### **4. Check for CRC errors**  
-If many CRC errors appear:
-- TX edge = too early  
-- Remote device samples invalid data  
-- Increase TXC delay  
-
-#### **5. Check for false link-ups**  
-If link toggles rapidly:
-- RXC instability  
-- RX delay adjustment needed  
+When the RGMII interface is operating in the 100Mbps mode, the Ethernet Media Independent Interface (MII) is implemented by reducing the clock rate to 25MHz. For 10Mbps operation, the clock is further reduced to 2.5MHz. In the RGMII 10/100 mode, the transmit clock RGMII TX_CLK is generated by the MAC and the receive clock RGMII RX_CLK is generated by the PHY. During the packet receiving operation, the RGMII RX_CLK can be stretched on either the positive or negative pulse to accommodate the transition from the free-running clock to a data synchronous clock domain. When the speed of the PHY changes, a similar stretching of the positive or negative pulses is allowed. No glitch is allowed on the clock signals during clock speed transitions. This interface operates at 10- and 100Mbps speeds the same way as at 1000Mbps mode with the exception that the data can be duplicated on the falling edge of the appropriate clock. The MAC holds the RGMII TX_CLK low until the MAC has confirmed that the MAC is operating at the same speed as the PHY.
 
 ---
 
@@ -724,8 +167,6 @@ This means:
 
 > Even if the PHY negotiates 1000 Mbps, the MAC will not operate correctly unless the software configures it for 1000 Mbps.
 
-This section explains why.
-
 ---
 
 ### 6.1 How Autonegotiation Works (PHY Side)
@@ -739,7 +180,6 @@ The DP83867 performs the following in hardware:
 4. Enables internal clocking paths for that mode
 5. Sets status bits:
    - `BMSR[2]` — LINK_STATUS  
-   - Vendor registers — negotiated speed & duplex
 
 This entire process occurs **independently of the MAC**.
 
@@ -747,16 +187,7 @@ This entire process occurs **independently of the MAC**.
 
 ### 6.2 How the MAC Operates Internally
 
-The AXI Ethernet Subsystem contains:
-
-- Internal speed-dependent timing generators  
-- CRC insertion & checking  
-- Inter-packet gap logic  
-- FIFO thresholds  
-- RGMII timing logic  
-- Clock enable logic
-
-The MAC has **no ability to infer PHY speed**.
+The MAC has **no ability to know PHY speed**.
 
 Instead, it must be explicitly configured by software using:
 
@@ -771,6 +202,10 @@ Supported values:
 - `XAE_SPEED_1000_MBPS`
 
 If this value does not match the negotiated PHY speed, the MAC will not function correctly.
+
+In our project we always **forced the MAC to 1 Gbps mode**, because both of our kr260 aimed gigabit ethernet.
+
+If we wanted to support 10/100 Mbps links as well, we would first read the negotiated speed from the PHY’s status registers over MDIO and then pass the corresponding XAE_SPEED_* value to XAxiEthernet_SetOperatingSpeed() instead of hard-coding XAE_SPEED_1000_MBPS. In our KR260 setup, we always run the link at 1 Gbps, so this dynamic speed handling is not needed.
 
 ---
 
@@ -1063,107 +498,6 @@ If any of these occur out of order, the MAC may never lock to the PHY’s RGMII 
 
 ---
 
-### 7.5 Full Bring-Up Procedure (Our KR260 Implementation)
-
-This is the **exact** sequence we follow in Vitis during Part-1 Ethernet bring-up.
-
----
-
-#### **Step 1 — Initialize AxiEthernet Instance**
-
-```c
-XAxiEthernet_LookupConfig()
-XAxiEthernet_CfgInitialize()
-```
-
-This sets internal MAC register mappings, resets FIFOs, and configures MDIO sub-block.
-
----
-
-#### **Step 2 — Configure MAC Operating Speed (ALWAYS 1000 Mbps)**
-
-```c
-XAxiEthernet_SetOperatingSpeed(&EthInst, XAE_SPEED_1000_MBPS);
-```
-
-Critical rule:
-
-> MAC must be set to 1 Gbps BEFORE autonegotiation affects the PHY TX/RX timing.
-
-If done after autoneg, timing mismatch may occur.
-
----
-
-#### **Step 3 — Enable MAC Options**
-
-Typical options:
-
-```c
-Options = XAE_FLOW_CONTROL_OPTION |
-          XAE_JUMBO_OPTION |
-          XAE_TRANSMITTER_ENABLE_OPTION |
-          XAE_RECEIVER_ENABLE_OPTION;
-
-XAxiEthernet_SetOptions(&EthInst, Options);
-```
-
----
-
-#### **Step 4 — Reset and Configure PHY**
-
-**4.1 Read BMCR**
-```c
-XAxiEthernet_PhyRead(&EthInst, PhyAddr, PHY_REG_BMCR, &Bmcr);
-```
-
-**4.2 Enable autoneg + restart**
-```c
-Bmcr |= BMCR_AUTONEG_EN | BMCR_RESTART_AN;
-XAxiEthernet_PhyWrite(&EthInst, PhyAddr, PHY_REG_BMCR, Bmcr);
-```
-
-**4.3 (Optional)**  
-Write RGMIICTL register for delay tuning.
-
-> On KR260, straps preconfigure RGMII delay so no action needed.
-
----
-
-#### **Step 5 — Poll BMSR Until Link Up**
-
-DP83867 requires the BMSR *double read*:
-
-```c
-for (i=0; i<100; i++) {
-    XAxiEthernet_PhyRead(&EthInst, PhyAddr, PHY_REG_BMSR, &Bmsr);
-    XAxiEthernet_PhyRead(&EthInst, PhyAddr, PHY_REG_BMSR, &Bmsr); // latch clear
-    if (BMSR_LINK_STATUS & Bmsr) break;
-    usleep(100000); // 100 ms
-}
-```
-
-This gives the PHY up to **10 seconds** to negotiate.
-
----
-
-#### **Step 6 — Start AXI Ethernet TX/RX Pipeline**
-
-```c
-XAxiEthernet_Start(&EthInst);
-```
-
-This enables:
-
-- AXI-Stream TX state machine  
-- AXI-Stream RX state machine  
-- RGMII logic inside MAC  
-- FIFO thresholds  
-- DMA-ready signaling (if DMA connected)  
-
-**Only now** is RGMII RXC properly forwarded into the AXI Ethernet.
-
----
-
 ### 7.6 Observing Bring-Up Using Hardware
 
 #### **Observation A — Check RJ45 LEDs**
@@ -1181,38 +515,7 @@ If LINK LED is off:
 
 #### **Observation B — Check MAC/PHY with MDIO Debugging**
 
-Commands:
-
-```c
-print_phy_registers();
-```
-
-Check:
-- BMCR (autoneg enable + restart)  
-- BMSR (link status)  
-- PHYIDR1/2 (correct PHY detected)  
-- RGMIICTL (mode settings)  
-
----
-
 ## 8. RGMII Debugging Guide (KR260 + DP83867 + AXI Ethernet)
-
-RGMII is simple on paper but *very sensitive* in practice.  
-Almost every “Ethernet not working” problem on KR260 PL Ethernet boils down to one of:
-
-- Wrong PHY address  
-- PHY not out of reset  
-- RGMII timing skew incorrect  
-- MAC not set to 1000 Mbps  
-- RXC missing or unstable  
-- Autoneg incomplete  
-- Wrong strap defaults  
-- AXI Ethernet not started (TX/RX FSMs disabled)  
-- AXI-Stream RX backpressure causing perceived packet loss  
-
-This chapter gives a practical, systematic debugging procedure.
-
----
 
 ### 8.1 First Question: **Is the PHY Alive?**
 
@@ -1223,16 +526,14 @@ Before touching the MAC, always confirm the PHY is actually responding.
 Run:
 
 ```c
-u16 val;
-XAxiEthernet_PhyRead(&EthInst, PhyAddr, 2, &val);     // PHYIDR1
-XAxiEthernet_PhyRead(&EthInst, PhyAddr, 3, &val);     // PHYIDR2
+XAxiEthernet_PhyRead(&EthInst, PhyAddr, PHY_REG_BMSR, &Bmsr);
 ```
 
 Expected:
 
 - Not `0xFFFF`
 - Not `0x0000`
-- Manufacturer bits match TI DP83867
+- It should be 2.
 
 If you get `0xFFFF`:
 
@@ -1241,8 +542,6 @@ If you get `0xFFFF`:
 - PHY stuck in reset
 - PHY has no power
 - Something holding MDIO high-Z
-
-**If PHY does not respond, STOP — nothing else will work.**
 
 ---
 
@@ -1261,32 +560,6 @@ If **both LEDs remain off**:
 - Autoneg disabled in BMCR  
 - Strap configuration incorrect  
 - 25 MHz clock not toggling  
-
-If **activity LED blinks but no RX packets reach PL**, proceed to the timing checks below.
-
----
-
-### 8.3 RGMII Clock Debugging 
-
-RGMII absolutely depends on **correct 125 MHz clock**.
-
-RGMII timing rule:
-
-- Data must lag clock by **1.5–2.0 ns**  
-- This is normally implemented by **PHY internal delays**
-
-On KR260, the strap pins set DP83867 to:
-
-- RGMII mode  
-- Internal TX clock delay **enabled**  
-- Internal RX clock delay **enabled**
-
-If delays are wrong or not applied, symptoms include:
-
-- RXC present but TX never accepted  
-- CRC errors / alignment errors  
-- MAC sees garbage frame length   
-- Only works at 100 Mbps, not at 1000 Mbps  
 
 ---
 
@@ -1332,33 +605,3 @@ Calling `SetOperatingSpeed()` after Start() leads to:
 - RX path stuck  
 - TX working but RX silent  
 - Invalid RGMII RX timing latched  
-
-### 8.7 The Debug Checklist
-
-#### **PHY Layer**
-- MDIO reads correct PHY ID  
-- BMSR link-up bit = 1  
-- Strap pins → RGMII mode  
-- RXC toggling at 125 MHz  
-- Cable OK / Link LED ON  
-
-#### **Timing**
-- TXC and RXC have internal delay enabled    
-- MAC speed set to 1000 Mbps  
-
-#### **MAC Layer**
-- XAxiEthernet_Start() called  
-- Options set BEFORE Start  
-- MDIO init BEFORE autoneg wait  
-
-#### **AXI-Stream Layer**
-- BRAM/RDMA module accepts beats  
-- No dropped beats during bursts  
-
-#### **Functional**
-- Ping works  
-- Wireshark sees frames  
-- Pattern generator TX verified  
-
-If all check out → RGMII is GOOD.
-

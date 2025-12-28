@@ -1,6 +1,6 @@
 ## MDIO Management Interface
 
-The **MDIO (Management Data Input/Output)** interface is used by the AXI 1G/2.5G Ethernet Subsystem to **configure and monitor the external PHY** (DP83867 on the KR260) over a low-speed serial bus. It is a Bi-directional management instruction/data signal that is sourced by the management station or the PHY during portions of communication. This interface is present in MII, GMII, RGMII and SGMII modes.
+The **MDIO (Management Data Input/Output)** interface is used by the AXI 1G/2.5G Ethernet Subsystem to **configure and monitor the external PHY** (The Texas Instruments **DP83867IR**  on the KR260) over a low-speed serial bus. It is a Bi-directional management instruction/data signal that is sourced by the management station or the PHY during portions of communication. This interface is present in MII, GMII, RGMII and SGMII modes.
 
 The Management Data Input/Output (MDIO) component can be used to read and write the PHY control register. Each PHY can be monitored before operation and the connection status can be monitored during operation. These registers provide status and control information such as link status, speed ability, and selection, power down for low power consumption, duplex mode (full or half), auto-negotiation, fault signaling, and loopback. 
 
