@@ -42,7 +42,7 @@ On the AXI Ethernet Subsystem, the MDIO interface typically appears as the follo
   - **`mdio_t`**: Tri-state control for the MDIO line (controls when the MAC releases the line so the PHY can drive it).  
 
  In a write instruction, the MAC provides the address and data. For a read instruction, the PHY receives from the MDIO stream during the turnaround, supplies the MAC with the requested register data, and then releases the MDIO stream.
- 
+
 ---
 
 ### 2. MDIO Protocol Frame Format (CLAUSE 22):
@@ -53,13 +53,14 @@ The MDIO data format for clause 22 is defined in the IEEE 802.3 Ethernet standar
 
 Since there is a limit to using only 5-bit addresses for both PHYADDR and REGADDR, MDIO supports up to 32 PHYs. Kr260 has 4 PHY addresses and our GEM 2 PL ethernet port PHY address is 2.
 
-![mdiologic](images/mdio_logic.png)
 
 **Data (DATA[15:0])**  
    - This field is 16-bit wide. During the read instruction, the PHY chip writes the data read from the REGAD register corresponding to the PHYAD in Data. During the write instruction, the MAC writes the value of the REGAD register corresponding to the PHYAD in Data. 
    - All PHY configuration is done by writing appropriate bitfields into these registers.
 
 All of this is handled **inside the AXI Ethernet Subsystem**. From software’s perspective, you simply call the appropriate driver functions to **read/write a 16-bit PHY register**, and the IP generates the MDIO waveforms automatically. So I used multiple read and writes to configure the phy or see the status of the connection from vitis. I will explain them in the next part. 
+
+![mdiologic](images/mdio_logic.png)
 
 ---
 
@@ -68,19 +69,23 @@ All of this is handled **inside the AXI Ethernet Subsystem**. From software’s 
 This part explains **every place where MDIO is used** in the vitis code and how each piece relates to configuring and monitoring the external PHY via the AXI Ethernet MDIO controller.
 
 In vitis, all MDIO access is done through the functions:
+
 - `XAxiEthernet_PhyRead()`
 - `XAxiEthernet_PhyWrite()`
 
 These functions talk to the **MAC’s MDIO block** using AXI-Lite; the MAC then drives
 the **MDC/MDIO** pins toward the external PHY.
 
-`XAxiEthernet_PhyRead()`  
+`XAxiEthernet_PhyRead()`
+
   - Reads a 16-bit register from the PHY via MDIO.
  
-`XAxiEthernet_PhyWrite()` 
+`XAxiEthernet_PhyWrite()`
+
   - Writes a 16-bit value to a PHY register via MDIO.
 
-- Higher-level functions build on top of these to:
+Higher-level functions build on top of these to:
+
   - Configure **auto-negotiation**.
   - Set **speed** (10/100/1000 Mbps).
   - Configure **duplex mode**.
@@ -111,13 +116,17 @@ Thus, **all PHY configuration is indirect**:
 `PHY_ADDR_CONFIG`: This is the MDIO PHY address of the external PHY DP83867IR. The MDIO protocol allows addresses 0–31, but the board only has four PHY, strapped to a specific address by pull-ups/pull-downs on its address pins. All later calls to XAxiEthernet_PhyRead/Write() use this address to target that PHY.
 
 `PHY_REG_BMCR` and `PHY_REG_BMSR`: These are register indices inside the PHY. 
+
 - BMCR (Address 0x0000): Basic Mode Control Register → controls reset, autoneg, speed, duplex, etc.
 - BMSR (Address 0x0001): Basic Mode Status Register → reports link status, autoneg completed, etc.
+
 On the MDIO bus, these values go into the REGAD field of the MDIO frame.
 
 `BMCR_AUTONEG_EN` and `BMCR_RESTART_AN`: Bit masks used when writing BMCR:
+
 - BMCR_AUTONEG_EN (0x1000): enables auto-negotiation.
 - BMCR_RESTART_AN (0x0200): tells the PHY to restart auto-negotiation.
+
 These values are OR’ed into the 16-bit BMCR value and sent to the PHY via MDIO.
 
 `BMSR_LINK_STATUS`: Bit mask for BMSR bit 2 (0x0004), which indicates link up when set. The code uses this bit to poll until the PHY reports a valid link. 
@@ -136,6 +145,7 @@ These values are OR’ed into the 16-bit BMCR value and sent to the PHY via MDIO
 **What this does on the MDIO bus:**
 
 1. `XAxiEthernet_PhyRead(&EthInst, PhyAddr, PHY_REG_BMSR, &Bmsr);` tells the MAC MDIO controller:
+
     - Target PHY address: PhyAddr → MDIO PHYAD field.
     - Target register: PHY_REG_BMSR → MDIO REGAD field.
 
@@ -145,6 +155,7 @@ This prints the value of the BMSR register, and we can see that the link is down
 ETH-5: PHY init
 PHY addr 2: BMSR = 0x7949
 ```
+
 ### 3.3 Enabling / Restarting Autonegotiation via BMCR (ETH-6: PHY autoneg enable/restart)
 
 ```c
@@ -159,12 +170,15 @@ PHY addr 2: BMSR = 0x7949
     }
 ```
 This is what is printed in serial monitor:
+
 ```c
 ETH-6: PHY autoneg enable/restart
 BMCR old        = 0x1140
 BMCR new written= 0x1340
 ```
+
 ### What Actually Changed
+
 `0x1340` differs from `0x1140` only in **bit 9 (Restart Auto-Negotiation)**:
 
 - **0x1140** → Bit 9 = 0  
@@ -217,12 +231,14 @@ I already explained how I used these two registers for PHY, here I want to expla
 ![bmsr2](images/bmsr2.png)
 
 Before auto negotiation enabled or restarted, we print the value inside BMCR register. The value inside is: 0x1140 = 0001 0001 0100 0000. Set bit positions: [12, 8, 6]. So 0x1140 means:
+
 - Bit 12 = 1 → Auto-negotiation enabled
 - Bit 9 (Restart AN) = 0 → no restart command issued
 - Bit 8 = 1 → Full-duplex mode
 - Bit 6 = 1, Bit 13 = 0 → Speed select bits (MSB,LSB) = (1,0)
 
 For the DP83867IR, the speed bits are interpreted as:
+
 - 11 → Reserved
 - 10 → 1000 Mb/s
 - 01 → 100 Mb/s
@@ -231,7 +247,9 @@ For the DP83867IR, the speed bits are interpreted as:
 But **important detail** from the datasheet: when AUTO-NEGOTIATION ENABLE (bit 12) = 1, bits 6 and 13 are ignored; the actual speed/duplex comes from autonegotiation, not from these bits. So even if it shows a wrong speed there is nothing to be worry about.
 
 After auto negotiation enabled or restarted, again we print the value inside BMCR register. The value inside is: 0x1340 = 0001 0011 0100 0000. Set bit positions: [12, 8, 6]. So 0x1140 means:
+
 - Bit 9 = 1 → Restart auto-negotiation command
+
 What we’re aiming for with 0x1340 is keep PHY in auto-negotiation + full-duplex mode and issue a fresh auto-negotiation restart via RESTART_AN (bit 9). This is crucial because the PHY may have already negotiated something earlier at power-up using strap pins. Simply rewriting the AUTONEG_ENABLE bit does not force a new negotiation cycle. Setting RESTART_AN guarantees any stale negotiation is discarded and the PHY starts a new autoneg sequence right after we bring up the MAC.
 
 For BMSR, we print the BMSR value before PHY autoneg enable/restart and XAxiEthernet_Start and the result we get is 0x7949 = 0111 1001 0100 1001. Set bit positions: 14, 13, 12, 11, 8, 6, 3, 0.
