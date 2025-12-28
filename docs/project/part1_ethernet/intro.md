@@ -12,6 +12,7 @@ The goal is to provide a **fully deterministic, loss-free Ethernet front-end** t
 Part-1 covers the following elements in full detail:
 
 ###  RGMII PHY Bring-Up
+
 - MDIO access through the AXI Ethernet Subsystem
 - BMCR/BMSR interpretation  
 - Auto-negotiation flow  
@@ -20,6 +21,7 @@ Part-1 covers the following elements in full detail:
 - 125 MHz clock requirements for RGMII regardless of link speed (10/100/1000 Mbps)
 
 ### AXI Ethernet Subsystem (MAC) Configuration
+
 - TX/RX AXI-Stream interface behavior  
 - Status channel decoding  
 - FCS handling (strip/keep)  
@@ -29,6 +31,7 @@ Part-1 covers the following elements in full detail:
 
 ### Full TX Pipeline (Stand-Alone Test Mode)
 A dedicated AXI-Stream pattern generator transmits known Ethernet frames to validate:
+
 - RGMII routing  
 - MAC TX behavior  
 - Clock timing relationship (TXC vs TXD)  
@@ -38,11 +41,12 @@ A dedicated AXI-Stream pattern generator transmits known Ethernet frames to vali
 This TX path was crucial for verifying physical connectivity and MAC/PHY configuration before integrating RDMA logic.
 
 ### Full RX Pipeline (Integrated With RDMA)
+
 The RX pipeline implemented in Part-1 forms the front-end of the final RDMA receive architecture:
 RGMII → Ethernet PHY → AXI Ethernet MAC (RX)→ s_axis_rxd + s_axis_rxs → axis_rx_to_rdma → RDMA decapsulation logic 
 
-
 This path is responsible for:
+
 - Loss-free AXI-Stream forwarding under backpressure  
 - Correct `tlast`, `tkeep`, and status handling  
 - Packet framing for RDMA header parser  
@@ -66,6 +70,7 @@ RDMA packets arrive as raw Ethernet frames. The higher RDMA layers (header parse
 The Ethernet subsystem in Part-1 is responsible for guaranteeing all of these properties.
 
 Even a single dropped or mis-aligned 32-bit word would break:
+
 - RDMA header parsing  
 - Queue number extraction  
 - Payload alignment  
@@ -80,10 +85,13 @@ This is why our AXI-Stream buffering and MAC configuration are documented in ext
 Part-1 was developed and tested in **three major configurations**, each validating a different subsystem:
 
 ### **Stage 1 — TX-Only Test (Wireshark Verification)**
+
 - Ethernet TX path active  
 - RX path disabled  
 - Laptop/PC captures packets via Wireshark  
-- Verified:
+
+Verified:
+
   - MAC timing
   - PHY negotiation
   - RGMII routing
@@ -95,10 +103,13 @@ This stage confirmed the hardware stack was electrically and logically correct.
 ---
 
 ### **Stage 2 — RX-Only Test (Python Packet Injection)**
+
 - TX disabled  
 - External PC injects Ethernet frames using Scapy  
 - Received data stored into BRAM  
-- Software reads BRAM to verify:
+
+Software reads BRAM to verify:
+
   - No dropped beats  
   - Correct ordering  
   - Correct `tlast` location  
@@ -106,6 +117,7 @@ This stage confirmed the hardware stack was electrically and logically correct.
   - AXI-Stream `tvalid/tready` timing
 
 This stage identified and resolved the **critical backpressure bug**:
+
 - A one-deep buffer must hold data stable whenever `valid=1 && ready=0`
 
 Without this fix, multicycle stalls in the RDMA validator caused random word loss.
@@ -118,6 +130,7 @@ MAC RX → axis_rx_to_rdma  → RDMA Header Parser → RDMA Payload Writer → D
 
 
 This integration demonstrated:
+
 - Full-speed RX at 1 Gbps
 - Correct RDMA header extraction
 - DDR writes matching transmitted payload
@@ -133,11 +146,13 @@ These insights guide the later parts of the RDMA pipeline.
 
 ### **4.1 AXI-Stream Timing Is Not Optional — It Is EVERYTHING**
 We learned through debugging that:
+
 - `valid` must remain high  
 - `data` and `keep` **must not change**  
 - while `ready=0`
 
 Otherwise:
+
 - RDMA header parser receives corrupted words  
 - Packets fragment  
 - Partial payloads appear in DDR  
@@ -167,6 +182,7 @@ This correction prevented misalignment in RDMA payload length calculation.
 
 ### **4.4 The MAC Does Not Autodetect Speed — PHY Negotiates, MAC Obeys**
 We learned:
+
 - PHY negotiates speed with link partner  
 - MAC speed must be explicitly configured  
 - RGMII timing always expects 125 MHz refclk  

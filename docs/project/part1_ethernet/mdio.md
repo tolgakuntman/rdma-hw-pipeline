@@ -1,6 +1,6 @@
 ## MDIO Management Interface
 
-The **MDIO (Management Data Input/Output)** interface is used by the AXI 1G/2.5G Ethernet Subsystem to **configure and monitor the external PHY** (The Texas Instruments **DP83867IR**  on the KR260) over a low-speed serial bus. It is a Bi-directional management instruction/data signal that is sourced by the management station or the PHY during portions of communication. This interface is present in MII, GMII, RGMII and SGMII modes.
+The **MDIO (Management Data Input/Output)** interface is used by the AXI 1G/2.5G Ethernet Subsystem to **configure and monitor the external PHY** (The Texas Instruments **DP83867CS**  on the KR260) over a low-speed serial bus. It is a Bi-directional management instruction/data signal that is sourced by the management station or the PHY during portions of communication. This interface is present in MII, GMII, RGMII and SGMII modes.
 
 The Management Data Input/Output (MDIO) component can be used to read and write the PHY control register. Each PHY can be monitored before operation and the connection status can be monitored during operation. These registers provide status and control information such as link status, speed ability, and selection, power down for low power consumption, duplex mode (full or half), auto-negotiation, fault signaling, and loopback. 
 
@@ -93,15 +93,22 @@ Higher-level functions build on top of these to:
   - Read **link status**.
 
 Thus, **all PHY configuration is indirect**:
-> PS software → `s_axi` → MAC MDIO controller → MDC/MDIO → DP83867IR PHY.
+> PS software → `s_axi` → MAC MDIO controller → MDC/MDIO → DP83867CS PHY.
 
 ### 3.1 MDIO-Related Constants (PHY address, registers, and bits)
+
+| Interface | PHY Type | MDIO Address | Board Location | Notes |
+|----------|----------|--------------|----------------|-------|
+| **PS GEM0** | **SGMII** | **0x04** | Front upper right | Uses SGMII mode |
+| **PS GEM1** | **RGMII** | **0x08** | Front lower right | RGMII interface |
+| **PL GEM2** | **RGMII** | **0x02** | Front upper left  | RGMII interface |
+| **PL GEM3** | **RGMII** | **0x03** | Front lower left  | RGMII interface |
 
 ```c
 /* PHY address used on the KR260 board for GEM2 PL ethernet*/
 #define PHY_ADDR_CONFIG     2   //important
 
-/* PHY register addresses (written in DP83867IR PHY datasheet)*/
+/* PHY register addresses (written in DP83867CS PHY datasheet)*/
 #define PHY_REG_BMCR   0
 #define PHY_REG_BMSR   1
 
@@ -113,7 +120,7 @@ Thus, **all PHY configuration is indirect**:
 #define BMSR_LINK_STATUS  0x0004  //link status bit 2
 ```
 
-`PHY_ADDR_CONFIG`: This is the MDIO PHY address of the external PHY DP83867IR. The MDIO protocol allows addresses 0–31, but the board only has four PHY, strapped to a specific address by pull-ups/pull-downs on its address pins. All later calls to XAxiEthernet_PhyRead/Write() use this address to target that PHY.
+`PHY_ADDR_CONFIG`: This is the MDIO PHY address of the external PHY DP83867CS. The MDIO protocol allows addresses 0–31, but the board only has four PHY, strapped to a specific address by pull-ups/pull-downs on its address pins. All later calls to XAxiEthernet_PhyRead/Write() use this address to target that PHY.
 
 `PHY_REG_BMCR` and `PHY_REG_BMSR`: These are register indices inside the PHY. 
 
@@ -207,14 +214,14 @@ When we set AUTONEG_EN | RESTART_AN, we do it because the DP83867 PHY treats the
     }
 ```
 
-The reason we perform two consecutive reads each loop iteration is that in DP83867IR PHY, the link-status bit is latched low and only shows the current real-time value after the first read clears the latch. So the first read clears the old latched status, and the second read gives the actual up-to-date link state. Inside the loop, we check the BMSR_LINK_STATUS bit, and as soon as it becomes 1, we know the PHY has successfully completed auto-negotiation and established a valid link with the link partner, so we print “LINK UP” and continue. If the loop ends without ever seeing the link bit go high, we print a warning showing the last BMSR value, meaning the PHY never achieved link—usually indicating a cable, switch, or negotiation problem.
+The reason we perform two consecutive reads each loop iteration is that in DP83867CS PHY, the link-status bit is latched low and only shows the current real-time value after the first read clears the latch. So the first read clears the old latched status, and the second read gives the actual up-to-date link state. Inside the loop, we check the BMSR_LINK_STATUS bit, and as soon as it becomes 1, we know the PHY has successfully completed auto-negotiation and established a valid link with the link partner, so we print “LINK UP” and continue. If the loop ends without ever seeing the link bit go high, we print a warning showing the last BMSR value, meaning the PHY never achieved link—usually indicating a cable, switch, or negotiation problem.
 
 
 **In this part, I explained the functions related to configuring the PHY from Vitis. For successful communication between the PHY and the MAC, these functions are necessary—just like the MAC-side configurations described in the AXI Ethernet MAC section.**
 
 ---
 
-### 4. MDIO in the KR260
+### 4. MDIO on the KR260
 
 On the KR260, the AXI Ethernet Subsystem is instantiated in the PL and connected to the PS through the s_axi interface. All PHY management is handled through the MDIO pins exposed by this IP. The MAC’s MDIO controller drives the MDC clock and controls the bidirectional MDIO data line, while the DP83867 PHY responds on the same bus.
 
@@ -241,7 +248,7 @@ Before auto negotiation enabled or restarted, we print the value inside BMCR reg
 - Bit 8 = 1 → Full-duplex mode
 - Bit 6 = 1, Bit 13 = 0 → Speed select bits (MSB,LSB) = (1,0)
 
-For the DP83867IR, the speed bits are interpreted as:
+For the DP83867CS, the speed bits are interpreted as:
 
 - 11 → Reserved
 - 10 → 1000 Mb/s

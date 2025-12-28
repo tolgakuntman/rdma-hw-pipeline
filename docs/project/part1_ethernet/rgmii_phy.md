@@ -1,4 +1,4 @@
-# RGMII & DP83867IR PHY
+# RGMII & DP83867CS PHY
 
 This chapter documents the RGMII-based Ethernet PHY used in the KR260 PL Ethernet interface and how it is configured and used together with the **AXI 1G/2.5G Ethernet Subsystem (PG138)** and our Vitis software. 
 
@@ -6,7 +6,7 @@ The focus is on:
 
 - Different types of Media-independent interfaces (MII) and their properties
 - What RGMII actually is (signals, timing, clocking).
-- How the **The Texas Instruments DP83867IR** PHY on the KR260 is wired and configured.
+- How the **The Texas Instruments DP83867CS** PHY on the KR260 is wired and configured.
 - How the PHY and MAC (AXI Ethernet IP) interact to produce a working 1 Gbps link.
 
 The PHY can be explained through its two main interfaces: MDIO and RGMII. I already have a separate section dedicated to MDIO, where I describe how the PHY is configured and how its status is monitored. This section will focus on RGMII, which is the primary data path between the MAC and the PHY and the most important connection between them. That is why I chose to include PHY in the title of this section instead of MDIO.
@@ -39,7 +39,7 @@ Each Ethernet interface consists of the following hardware path:
 1. **RJ45 jack with integrated magnetics**  
    Provides isolation and differential coupling for 10/100/1000BASE-T.
 
-2. **DP83867IR Gigabit PHY**  
+2. **DP83867CS Gigabit PHY**  
    Converts copper Ethernet signaling into digital RGMII signals. Handles: Line coding / decoding , Auto-negotiation, and Speed selection (10/100/1000).
 
 3. **RGMII interface into FPGA PL**  
@@ -59,9 +59,9 @@ Each Ethernet interface consists of the following hardware path:
 
 ### 1.3 Relevant PHY Hardware Features
 
-The DP83867 is a single port 10/100/1000 Ethernet PHY, that supports connections to an Ethernet MAC via RGMII or GMII. Connections to the Ethernet media are made via the IEEE 802 3 defined Media Dependent Interface. DP83867IRRGZ/CRRGZ support only RGMII.
+The DP83867 is a single port 10/100/1000 Ethernet PHY, that supports connections to an Ethernet MAC via RGMII or GMII. Connections to the Ethernet media are made via the IEEE 802 3 defined Media Dependent Interface. DP83867CSRGZ support only RGMII.
 
-The TI DP83867IR device provides several features essential to KR260 RGMII operation:
+The TI DP83867CS device provides several features essential to KR260 RGMII operation:
 
 - **IEEE 802.3 10/100/1000 Mb/s support**
 - **RGMII interface** with optional internal clock delays
@@ -221,7 +221,7 @@ Figure shows how to use the physical transmitter interface of the core to create
 
 **Note:** For UltraScale+ devices, RGMII interface logic uses only the IDELAY/ODELAY components to provide skew between clock and data lines.
 
-Even though our Ethernet subsystem includes a TEMAC, the KR260 design supports only 1 Gbps operation. Still, I want to demonstrate how the MAC internally generates the effective `GTX_CLK` for different Ethernet speeds while always receiving the same `gtx_clk` input clock. One detail that can be confusing is the naming: in the TI DP83867IR datasheet, the RGMII transmit clock pin on the PHY is labeled `GTX_CLK`, even though the MAC also takes an input clock called `gtx_clk`. These are not the same signal—the MAC-side `gtx_clk` is a 125-MHz reference clock used to drive the transmitter logic, while the PHY-side `GTX_CLK` is the forwarded RGMII transmit clock going to the RJ-45.
+Even though our Ethernet subsystem includes a TEMAC, the KR260 design supports only 1 Gbps operation. Still, I want to demonstrate how the MAC internally generates the effective `GTX_CLK` for different Ethernet speeds while always receiving the same `gtx_clk` input clock. One detail that can be confusing is the naming: in the TI DP83867CS datasheet, the RGMII transmit clock pin on the PHY is labeled `GTX_CLK`, even though the MAC also takes an input clock called `gtx_clk`. These are not the same signal—the MAC-side `gtx_clk` is a 125-MHz reference clock used to drive the transmitter logic, while the PHY-side `GTX_CLK` is the forwarded RGMII transmit clock going to the RJ-45.
 
 Another key point is that the TEMAC always uses the same 125-MHz clock for all three Ethernet speeds (10/100/1000 Mbps). This was my biggest confusion when I started working with PL Ethernet, because the MAC requires a pure 125-MHz clock even when the link operates at lower speeds. The way TEMAC achieves different data rates using a fixed 125-MHz reference is explained in the Tri-Speed RGMII Transmitter and Clock Logic section and illustrated in the figure below.
 
