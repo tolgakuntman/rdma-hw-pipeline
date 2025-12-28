@@ -1,24 +1,14 @@
 # AXI 1G/2.5G Ethernet Subsystem — Full Port & Interface
 
-This section explains every major interface of the AXI 1G/2.5G Ethernet Subsystem IP,
-including the AXI4-Lite control path, AXI4-Stream TX/RX channels,
-RGMII PHY interface, MDIO management, clock/reset structure, and how these are used
-in the KR260 + DP83867 PHY design.
+This section explains every major interface of the AXI 1G/2.5G Ethernet Subsystem IP, including the AXI4-Lite control path, AXI4-Stream TX/RX channels, RGMII PHY interface, MDIO management, clock/reset structure, and how these are used in the KR260 + DP83867 PHY design.
 
 ---
 
 ## 1. Overview
 **Information about the Ethernet IP Block Used**
-The AMD AXI Ethernet Subsystem implements a tri-mode (10/100/1000 Mb/s) Ethernet MAC
-or a 10/100 Mb/s Ethernet MAC. This core supports the use of MII, GMII, SGMII, RGMII, and
-1000BASE-X interfaces to connect a media access control (MAC) to a physical-side interface
-(PHY) chip. It also provides an on-chip PHY for 1G/2.5G SGMII and 1000/2500 BASE-X modes.
-The MDIO interface is used to access PHY Management registers. This subsystem optionally
-enables TCP/UDP full checksum offload, VLAN stripping, tagging, translation, and extended
-filtering for multicast frames features.
+The AMD AXI Ethernet Subsystem implements a tri-mode (10/100/1000 Mb/s) Ethernet MAC. This core supports the use of MII, GMII, SGMII, RGMII, and 1000BASE-X interfaces to connect a media access control (MAC) to a physical-side interface (PHY) chip. It also provides an on-chip PHY for 1G/2.5G SGMII and 1000/2500 BASE-X modes. The MDIO interface is used to access PHY Management registers. This subsystem optionally enables TCP/UDP full checksum offload, VLAN stripping, tagging, translation, and extended filtering for multicast frames features.
 
-This subsystem provides additional functionality and ease of use related to Ethernet. Based on
-the configuration, this subsystem creates interface ports, instantiates required infrastructure cores, and connects these cores.
+This subsystem provides additional functionality and ease of use related to Ethernet. Based on the configuration, this subsystem creates interface ports, instantiates required infrastructure cores, and connects these cores.
 
 The AXI Ethernet Subsystem is logically divided into three layers:
 
@@ -74,6 +64,7 @@ While creating VIVADO project for Kria Boards, there is "Connections --> Manage 
 As an example, i have added two PL Ethernet (GEM2 and GEM3 RGMII Ethernet) on above Kria KR260 Board based Block Design. You can drag from the board screen and place the PL GEM2 RGMII ETHERNET ip with external connections in your block design. VIVADO automatically configure the PL Ethernet IP(AXI 1G/2.5G Ethernet Subsystem IP) and pulls the constraint for it from Board file. 
 
 When selecting them via Board Connections:
+
 - Vivado automatically instantiates AXI 1G/2.5G Ethernet Subsystem (the MAC)
 - It automatically wires RGMII signals
 - It automatically imports the correct constraints like pin locations, I/O standards, RGMII timing requirements
@@ -103,6 +94,7 @@ The AXI Ethernet Subsystem exposes a full AXI4-Lite slave interface for software
 
 ### 3.1 Why AXI-Lite (`s_axi`) Is Required in Our Project
 In our RDMA project, the AXI-Lite interface is responsible for:
+
 - enabling TX and RX paths (XAE_TRANSMITTER_ENABLE_OPTION, XAE_RECEIVER_ENABLE_OPTION)
 - setting MAC address for PHY
 - initializing and managing the PHY via MDIO
@@ -112,12 +104,64 @@ In our RDMA project, the AXI-Lite interface is responsible for:
 - starting the MAC after configuration
 
 Without AXI-Lite:
+
 - MAC never turns on
 - PHY never negotiates link
 - m_axis_rxd / m_axis_rxs remain idle forever
 - No Ethernet traffic appears on RGMII
 
 All MAC software functions in vitis (`XAxiEthernet_SetMacAddress`, `*_SetOptions`, `PhyRead/PhyWrite`, `XAxiEthernet_Start()`) operate through this port.
+
+I will now mention some functions I used in vitis with s_axi to configure MAC and why we need them and what they do.
+
+`XAxiEthernet_LookupConfig(ETH_DEV_ID)` is the entry point that connects the driver to the exact AXI Ethernet MAC instance instantiated in Vivado. During BSP generation, Vitis reads the hardware handoff (.xsa), emits all XPAR_* macros into xparameters.h, and then expands those macros into a static XAxiEthernet_ConfigTable[] inside xaxiethernet_g.c. Each entry in this table represents one AXI Ethernet core in the design and contains everything the driver must know before touching hardware: the AXI-Lite base address (0x80000000 in our case), the PHY interface type (“rgmii”), checksum/VLAN/statistics capabilities, and the MDIO PHY address. Since the KR260 design includes only one Ethernet subsystem, ETH_DEV_ID is defined as 0, so XAxiEthernet_LookupConfig(0) simply scans this table and returns a pointer to the matching configuration record. This lookup does not access hardware—it only retrieves the structured metadata synthesized from xparameters.h—but it is essential, because every subsequent driver call (SetOptions, SetMacAddress, MDIO reads/writes, etc.) uses the returned configuration to calculate the correct register offsets on the s_axi_lite bus. In short, xparameters.h provides the raw values, xaxiethernet_g.c builds them into a proper config structure, and XAxiEthernet_LookupConfig() gives the driver the map it needs to talk to the MAC.
+
+Here is how that configtable looks like:
+
+```c
+XAxiEthernet_Config XAxiEthernet_ConfigTable[] __attribute__ ((section (".drvcfg_sec"))) = {
+
+	{
+		"xlnx,axi-ethernet-7.2", /* compatible */
+		0x80000000, /* reg */
+		0x0, /* xlnx,txcsum */
+		0x0, /* xlnx,rxcsum */
+		"rgmii", /* phy-mode */
+		0x0, /* xlnx,txvlan-tran */
+		0x0, /* xlnx,rxvlan-tran */
+		0x0, /* xlnx,txvlan-tag */
+		0x0, /* xlnx,rxvlan-tag */
+		0x0, /* xlnx,txvlan-strp */
+		0x0, /* xlnx,rxvlan-strp */
+		0x0, /* xlnx,mcast-extend */
+		0x1, /* xlnx,statistics-counters */
+		0x0, /* xlnx,enable-avb */
+		0x0, /* xlnx,enable-lvds */
+		0x0, /* xlnx,enable-1588 */
+		0x3e8, /* xlnx,speed-1-2p5 */
+		0x0, /* xlnx,number-of-table-entries */
+		0x1, /* xlnx,phyaddr */
+		0x405a, /* interrupts */
+		0xf9010000, /* interrupt-parent */
+		0x0 /* axistream-connected */
+	},
+	 {
+		 NULL
+	}
+};
+```
+
+`XAxiEthernet_CfgInitialize(&EthInst, EthCfg, EthCfg->BaseAddress)` is the call that actually binds the software driver instance to the physical AXI Ethernet hardware and performs the MAC’s low-level initialization over the AXI-Lite bus. Once XAxiEthernet_LookupConfig() returns a pointer to the correct configuration entry, CfgInitialize() uses that record—especially the AXI-Lite base address extracted from xaxiethernet_g.c—to set up the internal driver state, map all MAC register offsets, and perform a soft reset of the Ethernet core so it starts from a clean, deterministic state. This step is where the driver finally begins talking to the real hardware: it clears pending interrupts, resets internal FIFOs, applies default control-register values, and prepares the MAC’s management logic (including MDIO and option registers) for configuration. Every later function, such as SetOperatingSpeed(), SetMacAddress(), SetOptions(), or any MDIO access, relies on the driver being properly initialized so that the AXI-Lite writes land on the correct hardware address range. In short, CfgInitialize() is the moment where the abstract configuration returned by LookupConfig() becomes an operational connection to the real MAC hardware, ensuring the subsystem is reset, stable, and ready for further configuration.
+
+`XAxiEthernet_SetOperatingSpeed(&EthInst, XAE_SPEED_1000_MBPS)` programs the MAC’s internal speed mode—10, 100, or 1000 Mbps—regardless of what the external PHY is negotiating on the actual RGMII link, and this distinction is crucial for a correct PL-Ethernet bring-up. The DP83867 PHY performs auto-negotiation and decides the real wire speed using its own link partner exchange, but the AXI Ethernet Subsystem in the PL does not automatically detect or follow that negotiated speed. Instead, it must be told explicitly which speed mode its internal datapath and RGMII timing logic should operate in. By setting the operating speed to XAE_SPEED_1000_MBPS, the driver configures the MAC to expect 125 MHz RGMII TX clocking, full-rate DDR nibble transfers, and correct serialization/deskew behavior on the transmit path. If speed value was incorrect, the MAC would misinterpret the PHY’s RX timing, generate invalid TX timing, or corrupt AXI-Stream packets even if the PHY successfully negotiated a 1 Gbps link on the wire. In essence, the PHY decides the physical-layer speed, but the MAC still needs to be explicitly aligned with that decision so its internal hardware state machines operate in the correct mode. This function is therefore a mandatory part of MAC initialization: it ensures that the software-visible MAC logic is synchronized with the expected Gigabit operation of the KR260’s DP83867 RGMII port. RGMII, PHY and MAC communication is explained in RGMII & PHY part. In short, MAC decides the speed for RGMII tx therefore we need this function to adjust that speed of RGMII tx.  
+
+`XAxiEthernet_SetMacAddress(&EthInst, BoardMac)` programs the hardware MAC address into the AXI Ethernet Subsystem’s address filter registers through the AXI-Lite interface. Unlike a PC NIC or a SoC integrated Ethernet controller, the AXI Ethernet Subsystem inside the FPGA does not have a factory-burned MAC address; on reset its address registers either contain zeroes or undefined values, meaning the core would reject all unicast traffic and transmit frames with an invalid source address. This function writes our chosen six-byte BoardMac[] array into the MAC’s Station Address registers so the core has a valid identity on the network. In our RDMA test setup, the sender’s RDMA generator uses this MAC address as the destination for packets meant for our KR260 receiver, so configuring the correct address is mandatory—otherwise the incoming frames would be silently dropped at the MAC, and the sender would never see a functional link partner. Writing the MAC address through XAxiEthernet_SetMacAddress therefore gives the FPGA Ethernet core a proper network identity.
+
+`XAxiEthernet_GetOptions(&EthInst)` / `XAxiEthernet_SetOptions(&EthInst, Options)` / `XAxiEthernet_ClearOptions(&EthInst, ~Options)` work together to fully define the AXI Ethernet MAC feature configuration by manipulating a bitfield stored in the MAC’s control registers over AXI-Lite. First, XAxiEthernet_GetOptions(&EthInst) reads back the current option bitmask from the hardware so the driver can see what is already enabled, including anything that might have been set by default in the BSP or by earlier code. We then take that returned mask in software, OR in the features we explicitly want (for example XAE_TRANSMITTER_ENABLE_OPTION and XAE_RECEIVER_ENABLE_OPTION to turn on the TX and RX datapaths, XAE_FCS_STRIP_OPTION so the MAC removes the 4-byte FCS/CRC from incoming frames before presenting them on m_axis_rxd, and XAE_FLOW_CONTROL_OPTION so the MAC can react to or generate PAUSE frames if the link partner requests it), and pass this new bitmask to XAxiEthernet_SetOptions(&EthInst, Options), which writes the mask back into the MAC’s option registers. At that point, all bits set in Options are guaranteed to be enabled in hardware, but there could still be other bits left over from the previous configuration that we don’t want. To avoid inheriting any such configuration, we finally call XAxiEthernet_ClearOptions(&EthInst, ~Options): by passing the bitwise inverse of our desired mask, we tell the driver to clear every option bit that is not in Options. The end result is a deterministic MAC configuration where only the explicitly requested features are enabled.
+
+`XAxiEthernet_Start(&EthInst)` is the switch for the AXI Ethernet MAC: it takes everything that was previously configured through CfgInitialize(), SetOperatingSpeed(), SetMacAddress(), and the options, and actually brings the hardware datapath out of reset so frames can flow between AXI-Stream and the RGMII pins. Internally, the driver uses the EthInst handle (which already knows the BaseAddress from XAxiEthernet_CfgInitialize() and the corresponding XAxiEthernet_Config entry) to write into the MAC’s control and reset registers over the s_axi bus. This typically involves deasserting the internal TX/RX resets, enabling the transmit and receive state machines, and allowing the internal FIFOs to start accepting and forwarding data. From the PL point of view, before XAxiEthernet_Start() the AXI Ethernet block may be clocked and visible in the address map, but it is effectively “parked”: AXI-Stream traffic on s_axis_txd will not be transmitted onto RGMII, and incoming RGMII traffic will not show up on m_axis_rxd. After this call completes successfully, the MAC is fully active: valid frames from the DP83867CS PHY (once link is up and auto-negotiation between the two PHYs has completed) will be decoded by the AXI Ethernet core and pushed into RX AXI-Stream path, and anything our design sends on the TX AXI-Stream interface will be serialized and driven out over the RGMII interface toward the PHY. 
+
+In this part, I explained the functions related to configuring the MAC from Vitis. For successful communication between the PHY and the MAC, these functions are necessary—just like the PHY-side BMCR register configuration described in the MDIO section. 
 
 ## 4. AXI-Stream TX Path (Custom IP → MAC)
 
@@ -301,6 +345,7 @@ Key properties:
 - The MAC asserts `tready` only when the datapath clock domain is active and synchronized.
 
 For our design:
+
 - Connected to **PS `pl_clk0` (100 MHz)**.
 - This clock defines the timing of the **entire Ethernet streaming pipeline** also all our ips connected to this clock so the datapath inside our RDMA logic is driven with the same 100 Mhz clock coming from PS.
 
@@ -319,6 +364,7 @@ This is a stable global clock used by signal delay primitives and transceivers i
 ![gtx_clk](images/gtx_clk.png)
 
 Functions:
+
 - Provides the **TX clock domain** for the MAC’s internal datapath.
 - Drives the GMII/RGMII transmit timing and synchronizes TX signals.
 - Used by the MAC to produce proper Ethernet timings at 1 Gbps.
@@ -415,7 +461,7 @@ These two interrupt pins are connected to `xlconcat_0` and from there to pl_ps_i
 ---
 
 ## 12. Summary
-This section provides a detailed explanation of the MAC PL Ethernet IP customized for the KR260 board. Every single port of this IP is described.
+This section provides a detailed explanation of the MAC PL Ethernet IP customized for the KR260 board. Every single port of this IP is explained.
 
 
 

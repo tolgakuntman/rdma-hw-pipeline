@@ -89,9 +89,9 @@ nav:
     - AXI Ethernet MAC: project/part1_ethernet/axi_ethernet_MAC.md
     - RGMII & PHY: project/part1_ethernet/rgmii_phy.md
     - MDIO: project/part1_ethernet/mdio.md
-    - RX Path: project/part1_ethernet/rx_path.md
-    - AXIS RX/TX_to_RDMA Block: project/part1_ethernet/rxtx_axis_to_rdma.md
     - Clocking & Timing: project/part1_ethernet/timing_clocks.md
+    - AXIS RX/TX_to_RDMA Block: project/part1_ethernet/rxtx_axis_to_rdma.md
+    - RX/TX Ethernet Tests: project/part1_ethernet/rxtx_path.md
     - Combined Block Design: project/part1_ethernet/combined_bd.md
     - Measurements & Results: project/part1_ethernet/measurements.md
   - Part 2:
