@@ -41,12 +41,7 @@ Each Ethernet interface consists of the following hardware path:
    Provides isolation and differential coupling for 10/100/1000BASE-T.
 
 2. **DP83867IR Gigabit PHY**  
-   Converts copper Ethernet signaling into digital RGMII signals.  
-   
-   Handles:
-   - Line coding / decoding  
-   - Auto-negotiation  
-   - Speed selection (10/100/1000)
+   Converts copper Ethernet signaling into digital RGMII signals. Handles: Line coding / decoding , Auto-negotiation, and Speed selection (10/100/1000).
 
 3. **RGMII interface into FPGA PL**  
    
