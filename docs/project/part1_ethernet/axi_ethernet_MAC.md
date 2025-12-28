@@ -1,24 +1,14 @@
 # AXI 1G/2.5G Ethernet Subsystem — Full Port & Interface
 
-This section explains every major interface of the AXI 1G/2.5G Ethernet Subsystem IP,
-including the AXI4-Lite control path, AXI4-Stream TX/RX channels,
-RGMII PHY interface, MDIO management, clock/reset structure, and how these are used
-in the KR260 + DP83867 PHY design.
+This section explains every major interface of the AXI 1G/2.5G Ethernet Subsystem IP, including the AXI4-Lite control path, AXI4-Stream TX/RX channels, RGMII PHY interface, MDIO management, clock/reset structure, and how these are used in the KR260 + DP83867 PHY design.
 
 ---
 
 ## 1. Overview
 **Information about the Ethernet IP Block Used**
-The AMD AXI Ethernet Subsystem implements a tri-mode (10/100/1000 Mb/s) Ethernet MAC
-or a 10/100 Mb/s Ethernet MAC. This core supports the use of MII, GMII, SGMII, RGMII, and
-1000BASE-X interfaces to connect a media access control (MAC) to a physical-side interface
-(PHY) chip. It also provides an on-chip PHY for 1G/2.5G SGMII and 1000/2500 BASE-X modes.
-The MDIO interface is used to access PHY Management registers. This subsystem optionally
-enables TCP/UDP full checksum offload, VLAN stripping, tagging, translation, and extended
-filtering for multicast frames features.
+The AMD AXI Ethernet Subsystem implements a tri-mode (10/100/1000 Mb/s) Ethernet MAC. This core supports the use of MII, GMII, SGMII, RGMII, and 1000BASE-X interfaces to connect a media access control (MAC) to a physical-side interface (PHY) chip. It also provides an on-chip PHY for 1G/2.5G SGMII and 1000/2500 BASE-X modes. The MDIO interface is used to access PHY Management registers. This subsystem optionally enables TCP/UDP full checksum offload, VLAN stripping, tagging, translation, and extended filtering for multicast frames features.
 
-This subsystem provides additional functionality and ease of use related to Ethernet. Based on
-the configuration, this subsystem creates interface ports, instantiates required infrastructure cores, and connects these cores.
+This subsystem provides additional functionality and ease of use related to Ethernet. Based on the configuration, this subsystem creates interface ports, instantiates required infrastructure cores, and connects these cores.
 
 The AXI Ethernet Subsystem is logically divided into three layers:
 

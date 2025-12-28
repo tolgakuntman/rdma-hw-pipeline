@@ -48,8 +48,9 @@ On the AXI Ethernet Subsystem, the MDIO interface typically appears as the follo
 
 The MDIO data format for clause 22 is defined in the IEEE 802.3 Ethernet standard, as shown in the figure above.
 
-
 Since there is a limit to using only 5-bit addresses for both PHYADDR and REGADDR, MDIO supports up to 32 PHYs. Kr260 has 4 PHY addresses and our GEM 2 PL ethernet port PHY address is 2.
+
+![mdiologic](images/mdio_logic.png)
 
 **Data (DATA[15:0])**  
    - This field is 16-bit wide. During the read instruction, the PHY chip writes the data read from the REGAD register corresponding to the PHYAD in Data. During the write instruction, the MAC writes the value of the REGAD register corresponding to the PHYAD in Data. 

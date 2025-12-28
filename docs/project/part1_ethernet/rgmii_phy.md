@@ -3,6 +3,7 @@
 This chapter documents the RGMII-based Ethernet PHY used in the KR260 PL Ethernet interface and how it is configured and used together with the **AXI 1G/2.5G Ethernet Subsystem (PG138)** and our Vitis software. 
 
 The focus is on:
+
 - Different types of Media-independent interfaces (MII) and their properties
 - What RGMII actually is (signals, timing, clocking).
 - How the **The Texas Instruments DP83867IR** PHY on the KR260 is wired and configured.
@@ -14,9 +15,7 @@ The PHY can be explained through its two main interfaces: MDIO and RGMII. I alre
 
 ## 1. KR260 Ethernet Hardware Overview
 
-The KR260 integrates two PL-based Gigabit Ethernet interfaces implemented through **RGMII** and connected to two discrete PHY devices. These interfaces form the physical entry point for all Ethernet frames used in our PL-side data pipeline.
-
-This section summarizes the hardware components involved and how Ethernet signals reach the FPGA fabric.
+The KR260 integrates two PL-based Gigabit Ethernet interfaces implemented through **RGMII** and connected to two discrete PHY devices. These interfaces form the physical entry point for all Ethernet frames used in our PL-side data pipeline. This section summarizes the hardware components involved and how Ethernet signals reach the FPGA fabric.
 
 ---
 
@@ -54,7 +53,6 @@ Each Ethernet interface consists of the following hardware path:
    - FCS generation and checking  
    - MAC address filtering  
  
-
 ![phy_app](images/PHY_application.png)
 
 ---
@@ -88,8 +86,7 @@ Inside the Vivado block design:
 - `gtx_clk` (125 MHz) for the MAC is supplied via a Clocking Wizard.
 - MDIO is connected for PHY management.
 
-Later sections build on this hardware foundation by explaining RGMII signaling (Section 2), Vivado interfacing (Section 3), MDIO runtime configuration (Section 4), and PHY clocking/delay behavior (Section 5).
-
+Later sections build on this hardware foundation.
 ---
 
 ## 2. What is RGMII?
@@ -137,12 +134,12 @@ These pins are visible in PL ethernet block.
 
 ![rgmii_mac](images/rgmii_MAC.png)
 
-
 ---
 
 ### 2.2 RGMII Speeds and Clocking Behavior
 
 #### 1 Gbps Operation
+
 - The MAC drives/receives data at **125 MHz DDR** on `rgmii_td[3:0]` / `rgmii_rd[3:0]`.
 - Each 8 ns clock period carries 8 bits.
 - Effective data rate: **1.0 Gbit/s** on the digital RGMII bus.
@@ -152,7 +149,7 @@ When the RGMII interface is operating in the 100Mbps mode, the Ethernet Media In
 
 ---
 
-## 6. MAC Speed vs PHY Autonegotiation
+## 3. MAC Speed vs PHY Autonegotiation
 
 One of the most commonly misunderstood parts of RGMII bring-up is **the relationship between the PHY's negotiated line speed** and **the MAC’s internal operating speed**.
 
@@ -163,13 +160,11 @@ The MAC (AXI 1G/2.5G Ethernet Subsystem), however:
 - **Does NOT read PHY speed from BMSR or vendor registers**
 - **Relies 100% on software configuration**
 
-This means:
-
-> Even if the PHY negotiates 1000 Mbps, the MAC will not operate correctly unless the software configures it for 1000 Mbps.
+This means even if the PHY negotiates 1000 Mbps, the MAC will not operate correctly unless the software configures it for 1000 Mbps.
 
 ---
 
-### 6.1 How Autonegotiation Works (PHY Side)
+### 3.1 How Autonegotiation Works at PHY Side
 
 The PHY negotiates *link speed* and *duplex* with the remote device via the 802.3 standard autonegotiation FSM.  
 The DP83867 performs the following in hardware:
@@ -185,7 +180,7 @@ This entire process occurs **independently of the MAC**.
 
 ---
 
-### 6.2 How the MAC Operates Internally
+### 3.2 How the MAC Operates Internally
 
 The MAC has **no ability to know PHY speed**.
 
@@ -207,317 +202,40 @@ In our project we always **forced the MAC to 1 Gbps mode**, because both of our 
 
 If we wanted to support 10/100 Mbps links as well, we would first read the negotiated speed from the PHY’s status registers over MDIO and then pass the corresponding XAE_SPEED_* value to XAxiEthernet_SetOperatingSpeed() instead of hard-coding XAE_SPEED_1000_MBPS. In our KR260 setup, we always run the link at 1 Gbps, so this dynamic speed handling is not needed.
 
----
+![speed](images/multi_speed.png)
 
-### 6.3 Why the MAC Cannot Auto-Detect Speed
-
-In typical SoC systems (PS GEM, Intel MAC, Broadcom MAC), PHY speed can be read via MDIO and MAC is updated automatically.
-
-But the AXI Ethernet IP in the PL is different:
-
-- It is **pure logic**, not a “smart” MAC with an embedded PHY driver.
-- It has **no MDIO controller that interprets negotiation results**.
-- It exposes MDIO pins, but does not analyze their data.
-- It has no firmware inside it.
-
-Thus, only software (running on the A53) knows how to:
-
-- Read the PHY via MDIO  
-- Interpret vendor registers  
-- Update MAC speed  
-- Reconfigure flow control, pause frames, etc.  
-
-In other words:
-
-> The PHY chooses the wire speed.  
-> The MAC must be told what speed that is.
+When the AXI Ethernet Subsystem operates in a multi-speed environment—meaning the external PHY may negotiate 10, 100, or 1000 Mbps depending on the link partner—the MAC cannot automatically follow the PHY’s negotiated speed because the AXI Ethernet IP in the PL has no hardware logic that interprets MDIO data. The PHY performs auto-negotiation on the cable and decides the link speed, but the MAC remains blind unless software explicitly reads the PHY registers over MDIO and then updates the MAC’s internal speed mode using XAxiEthernet_SetOperatingSpeed(). If this is not done, and the PHY negotiates a speed different from the MAC’s current configuration, the MAC will not pass any traffic due to timing mismatch. 
 
 ---
 
-### 6.4 Our Design Decision: Always Force MAC to 1000 Mbps
+### 3.3 Tri-Mode Ethernet MAC and PHY Communication with RGMII in Detail
 
-On the KR260 PL Ethernet port, everything is gigabit-capable:
+Our PL ethernet block contains Tri-Mode MAC which supports three different speeds however the ethernet block itself only supports 1GBPS. Therefore, when we look at the Tri-Mode Ethernet MAC LogiCORE IP Product Guide (PG051) to see our diagram and RGMII explanation we should look at **1 Gbps Ethernet MAC Core Interfaces**. The following figures and informations are taken under 1GBPS section.
 
-- DP83867 supports 1000BASE-T  
-- RJ45 magnetics support 1 Gbps  
-- Test PCs/switches support 1 Gbps  
-- AXI Ethernet IP supports 1 Gbps RGMII mode  
-- Clocking Wizard provides 125 MHz clocking regardless of wire speed
+**1 Gbps RGMII Transmitter and Clock Logic:**
+The logic required to implement the RGMII transmitter logic is shown in the figure. The `gtx_clk`  is a user-supplied 125 MHz reference clock source which is placed onto global clock routing to provide the clock for all transmitter logic, both within the core and for the user-side logic which connects to the transmitter AXI4-Stream interface of the core.
 
-Thus we simplified the logic:
+![rgmii_td](images/rgmii_td.png)
 
-#### **Always configure the MAC for 1000 Mbps:**
+Figure shows how to use the physical transmitter interface of the core to create an external RGMII. The signal names and logic shown in this figure exactly match those delivered with the core. It shows that the output transmitter signals are registered in a device bit slice using output DDR registers, before driving them to the device pads. The logic required to forward the transmitter clock is also shown. This logic uses a bit slice output Double-Data-Rate (DDR) register so that the clock signal produced incurs exactly the same delay as the data and control signals. However, the clock signal is then routed through an output delay element (ODELAY cascaded with IDELAY) before connecting to the device pad. The result of this is to create a 2 ns delay, which places the rgmii_txc forwarded clock in the center of the data valid window for forwarded RGMII data and control signals.
 
-```c
-XAxiEthernet_SetOperatingSpeed(&EthInst, XAE_SPEED_1000_MBPS);
-```
+**Note:** For UltraScale+ devices, RGMII interface logic uses only the IDELAY/ODELAY components to provide skew between clock and data lines.
 
-Even if the PHY negotiates 100 Mbps in some edge case:
+Even though our Ethernet subsystem includes a TEMAC, the KR260 design supports only 1 Gbps operation. Still, I want to demonstrate how the MAC internally generates the effective `GTX_CLK` for different Ethernet speeds while always receiving the same `gtx_clk` input clock. One detail that can be confusing is the naming: in the TI DP83867IR datasheet, the RGMII transmit clock pin on the PHY is labeled `GTX_CLK`, even though the MAC also takes an input clock called `gtx_clk`. These are not the same signal—the MAC-side `gtx_clk` is a 125-MHz reference clock used to drive the transmitter logic, while the PHY-side `GTX_CLK` is the forwarded RGMII transmit clock going to the RJ-45.
 
-- The MAC continues to run its internal logic at 1 Gbps mode  
-- The PHY internally adjusts for line speed  
-- RGMII timing still uses 125 MHz clock  
-- The MAC sees normal RGMII DDR data  
-- Packets continue to flow normally  
+Another key point is that the TEMAC always uses the same 125-MHz clock for all three Ethernet speeds (10/100/1000 Mbps). This was my biggest confusion when I started working with PL Ethernet, because the MAC requires a pure 125-MHz clock even when the link operates at lower speeds. The way TEMAC achieves different data rates using a fixed 125-MHz reference is explained in the Tri-Speed RGMII Transmitter and Clock Logic section and illustrated in the figure below.
 
-This works because:
+**For RGMII, this global 125 MHz is used to clock transmitter logic at all three Ethernet speeds. The data rate difference between the three speeds is compensated for by the transmitter clock enable logic (the enable_gen module from the example design describes the required logic). The derived tx_enable signal must be supplied to the Ethernet MAC core level. At all speeds the MAC expects the user logic to supply/accept new data after each validated clock cycle. The generated tx_enable signal is always High at 1 Gbps, High for one in ten cycles at 100 Mbps, and High for one in a hundred cycles at 10 Mbps.**
 
-> RGMII always uses 125 MHz clocks on the MAC side.  
-> Speed reduction (100/10 Mbps) happens inside the PHY.
+![rgmii_ultra](images/ultrascale_rgmii.png)
 
-The DP83867 manages the adaptation.
+So basically we enable all clock pulses for our 1GBPS design with enable_gen module inside MAC to have 125 Mhz `gtx_clk`.
 
 ---
 
-### 6.5 But What If We Wanted Multi-Speed Support?
+## 4. RGMII Debugging Guide 
 
-Then the firmware must:
-
-1. Read PHY negotiated speed from PHY vendor registers  
-2. Compare against the current MAC configuration  
-3. Reconfigure MAC speed  
-4. Reset / re-init AXI Ethernet subsystem  
-5. Possibly reset RGMII interface  
-6. Re-enable RX/TX paths
-
-#### Speed detection example (pseudo-code):
-
-```c
-u16 phyStatus;
-READ_PHY(PhyAddr, 0x11, &phyStatus);  // DP83867 speed/duplex vendor reg
-
-int speed;
-switch (phyStatus & SPEED_MASK) {
-    case SPEED_1000: speed = XAE_SPEED_1000_MBPS; break;
-    case SPEED_100:  speed = XAE_SPEED_100_MBPS;  break;
-    case SPEED_10:   speed = XAE_SPEED_10_MBPS;   break;
-}
-
-XAxiEthernet_SetOperatingSpeed(&EthInst, speed);
-```
-
-KR260 does NOT require this because both ports are always gigabit.
-
----
-
-### 6.6 Consequences of Speed Mismatch (Debugging Guide)
-
-If the PHY negotiates 1 Gbps, but MAC is configured for 100 Mbps:
-
-- RX packets may be corrupted  
-- Inter-packet gap may be violated  
-- Partner drops packets  
-- AXI Ethernet RX side may report:
-  - CRC errors  
-  - alignment errors  
-  - empty frames  
-  - carrier sense issues  
-
-If MAC is set faster than PHY:
-
-- RX FIFO may overflow  
-- Link may appear up but traffic fails  
-- Wireshark captures garbage  
-- AXI Ethernet may never assert `m_axis_rxd_tvalid`
-
-Clear symptoms include:
-
-#### **Symptom A — Link Up but No RX Packets**
-
-Cause: MAC at wrong speed → internal IPG timing invalid.
-
-#### **Symptom B — Many CRC Errors in Wireshark**
-
-Cause: MAC samples RGMII data incorrectly.
-
-#### **Symptom C — “Stuck” RX Path (valid=0 forever)**
-
-Cause: MAC cannot align RGMII RX data stream.
-
-#### **Symptom D — TX Works, RX Doesn’t**
-
-Cause: TX timing tolerant to mismatch, RX intolerant.
-
----
-
-### 6.7 Why RGMII Always Uses 125 MHz Regardless of Speed
-
-This point is crucial:
-
-> RGMII always uses a 125 MHz clock between MAC and PHY — even for 10/100 Mbps links.
-
-The PHY simply **repeats** data at low rate:
-
-- For 100 Mbps → transmits valid data only on rising edge  
-- For 10 Mbps → repeats symbols for many cycles  
-- Clock remains *always* 125 MHz
-
-This means:
-
-- The MAC internal logic must *always* assume gigabit timing  
-- Only the PHY knows the real wire speed  
-- The MAC cannot infer anything from RGMII clock alone  
-
-This is why AXI Ethernet must be pegged to **1 Gbps mode** for RGMII.
-
----
-
-### 6.8 Practical Bring-Up Sequence (Our KR260 Implementation)
-
-Our firmware configures things in the only safe and stable order:
-
-1. **Configure the MAC to 1000 Mbps**
-   ```c
-   XAxiEthernet_SetOperatingSpeed(&EthInst, XAE_SPEED_1000_MBPS);
-   ```
-
-2. **Enable autonegotiation on PHY**
-   ```c
-   bmcr |= BMCR_AUTONEG_EN | BMCR_RESTART_AN;
-   ```
-
-3. **Poll PHY link status**
-   ```c
-   if (Bmsr & BMSR_LINK_STATUS) { ... }
-   ```
-
-4. **Start RX/TX pipelines**
-   ```c
-   XAxiEthernet_Start(&EthInst);
-   ```
-
-This procedure guarantees:
-
-- MAC internal clocking is stable  
-- RGMII interface is timed correctly  
-- PHY negotiates freely without interfering  
-- AXI-Stream TX/RX state machines do not hang  
-
----
-
-## 7. Reset, Power-Up, and Bring-Up Sequence
-
-Correct RGMII bring-up depends on a very strict initialization order across:
-
-- The board’s power rails  
-- DP83867 strap sampling  
-- 25 MHz reference stabilization  
-- PHY reset signals  
-- MAC configuration  
-- MDIO initialization  
-- Autonegotiation  
-- RX/TX datapath activation  
-
-If these steps occur in the wrong order, the RGMII link may appear *up*, but:
-
-- RX path never receives data  
-- RGMII clock edges are misaligned  
-- Autoneg stalls  
-- CRC/alignment errors appear  
-- MAC AXI-Stream RX stays stuck in `tvalid=0` state
-
-This section details the **exact correct sequence** for KR260 PL-Ethernet.
-
----
-
-### 7.1 Power-Up Sequence of DP83867 (Board Level)
-
-The DP83867 PHY has several dependencies that MUST stabilize before any communication can begin:
-
-#### **1. Power rails**
-According to DP83867 datasheet:
-- `VDDA1P8` must reach stable levels before internal analog circuits lock.
-- `VDDIO` powers RGMII I/O cells.
-- `VDDA2P5` powers PLL and analog front end.
-
-#### **2. 25 MHz reference**
-The PHY’s internal PLL locks on the external **25 MHz crystal/oscillator**.
-
-Before reset is released:
-- The 25 MHz clock must be stable.
-- The PHY must complete strap sampling.
-
-#### **3. Strap Pin Latching**
-During reset release, PHY samples configuration straps:
-
-- PHY address  
-- RGMII vs SGMII mode  
-- TX/RX clock delays  
-- LED behavior  
-- Auto-MDIX
-
-On KR260, these straps select:
-- RGMII mode  
-- Appropriate RGMII delays  
-- Correct PHY addresses (each port has a unique address)  
-
-> **NOTE (screenshot placeholder):** Insert KR260 schematic snippet showing DP83867 strap pins.
-
----
-
-### 7.2 Reset Signals (PL Drives PHY Reset)
-
-The KR260 carrier card routes **PHY reset lines** to the PL fabric.
-
-The AXI Ethernet IP exposes:
-
-```
-phy_rst_n  (active LOW)
-```
-
-This is driven by the PL through:
-- `proc_sys_reset`  
-- AXI Ethernet internal logic
-
-**Important:**  
-The PHY reset pin MUST be held low long enough for strap sampling and power stabilization.  
-Typical requirement (DP83867 datasheet): **10 ms minimum**.
-
-KR260 satisfies this automatically, as `proc_sys_reset` asserts reset until PS/PL clocks stabilize.
-
----
-
-### 7.3 Global Reset Ordering (MAC → PHY → MDIO)
-
-A correct reset/bring-up sequencing is:
-
-1. **Power rails come up**
-2. **25 MHz ref clock stable**
-3. **PHY held in reset (phy_rst_n = 0)**
-4. **PL fabric configured / bitstream loaded**
-5. **MAC initially in reset**
-6. **Release PHY reset (phy_rst_n = 1)**
-7. **PHY samples straps and begins autonegotiation**
-8. **Software configures MAC**
-9. **Software configures PHY via MDIO**
-10. **MAC RX/TX enabled**
-11. **RX clock begins toggling (RGMII RXC)**
-12. **RX frames arrive into MAC**
-
-If any of these occur out of order, the MAC may never lock to the PHY’s RGMII clock domain.
-
----
-
-### 7.6 Observing Bring-Up Using Hardware
-
-#### **Observation A — Check RJ45 LEDs**
-- Link LED must be ON  
-- Activity LED should blink upon TX/RX  
-
-If LINK LED is off:
-- Wrong PHY address  
-- Autoneg disabled  
-- Cable issue  
-- Remote device down  
-- PHY not out of reset  
-
----
-
-#### **Observation B — Check MAC/PHY with MDIO Debugging**
-
-## 8. RGMII Debugging Guide (KR260 + DP83867 + AXI Ethernet)
-
-### 8.1 First Question: **Is the PHY Alive?**
+### 4.1 First Question: **Is the PHY Alive?**
 
 Before touching the MAC, always confirm the PHY is actually responding.
 
@@ -545,25 +263,33 @@ If you get `0xFFFF`:
 
 ---
 
-### 8.2 Link LED Status Can Diagnose Half the Problems
+### 4.2 Link LED Status
 
-On KR260:
+LED's for PHY is important for seeing the status of connection without looking at the registers with MDIO. The good thing is there are different status view options that you can adjust by using the LED configuration registers. In the datasheet, there are two tables showing the LED configuration registers.
 
-- **Green LED** → link established (usually 1G)  
-- **Yellow LED** → activity, autonegotiation, or 100/10 Mbit fallback  
+![led1.png](images/led1.png)
 
-If **both LEDs remain off**:
+![led2.png](images/led2.png)
 
-- Cable missing / bad  
-- Switch port disabled  
-- PHY still in reset  
-- Autoneg disabled in BMCR  
-- Strap configuration incorrect  
-- 25 MHz clock not toggling  
+On the KR260, only two LEDs are used: LED_0_SEL and LED_1_SEL. These pins already have default configurations in the DP83867, and since I had no issues during my initial TX tests, I did not modify them. However, if you encounter problems, you can change one of the LED functions to activity mode, which will blink whenever packets are received and provide useful visual feedback.
+
+With the default settings:
+
+- **Green LED** → 1000BT Link Established 
+- **Yellow LED** → Link established
+
+![kria.png](images/kria.png)
+
+If LINK LED is off:
+- Wrong PHY address  
+- Autoneg disabled  
+- Cable issue  
+- Remote device down  
+- PHY not out of reset  
 
 ---
 
-### 8.4 Autonegotiation Debugging
+### 4.3 Autonegotiation Debugging
 
 The DP83867 autoneg FSM may fail silently.
 
@@ -579,29 +305,63 @@ if (b2 & 0x0004)
 
 If link never becomes UP:
 
-- Switch port is locked to wrong mode (forced speed/duplex)
 - Autoneg disabled in BMCR
 - DONT FORCE SPEED in software — let PHY negotiate  
   (MAC speed is independent of PHY speed)
 
 ---
 
-### 8.6 Debugging AXI Ethernet (MAC-Side Issues)
+## 5. A visual Comparison Between Different Media Independant Interfaces (MII)
 
-Even if RGMII is perfect, MAC may refuse RX due to misconfigurations.
+### MII (Media Independent Interface)
 
-#### Check — Did you call SetOperatingSpeed *before* enabling TX/RX?
+- 4-bit wide Tx and Rx data paths  
+- 25 MHz Tx and Rx clocks @ 100 Mbps (2.5 MHz @ 10 Mbps)  
+- Supports 10 Mbps and 100 Mbps operation  
+- **16 signals total**
 
-Correct order:
+![connectmii.png](images/mii_connect.png)
 
-```c
-XAxiEthernet_SetOperatingSpeed(&EthInst, XAE_SPEED_1000_MBPS);
-XAxiEthernet_SetOptions(&EthInst, Options);
-XAxiEthernet_Start(&EthInst);
-```
+## GMII (Gigabit Media Independent Interface)
 
-Calling `SetOperatingSpeed()` after Start() leads to:
+- 8-bit wide Tx and Rx data paths  
+- 125 MHz Tx and Rx clocks  
+- Supports 1000 Mbps operation  
+- **24 signals total**
 
-- RX path stuck  
-- TX working but RX silent  
-- Invalid RGMII RX timing latched  
+![connectgmii.png](images/gmii_connect.png)
+
+## RGMII (Reduced Gigabit Media Independent Interface)
+
+- 4-bit wide Tx and Rx data paths  
+- 125 MHz Tx and Rx clocks with **data latched on both rising and falling edges (DDR)**  
+- Supports 1000 Mbps operation  
+- **12 signals total**
+
+![connectrgmii.png](images/rgmii_connect.png)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
