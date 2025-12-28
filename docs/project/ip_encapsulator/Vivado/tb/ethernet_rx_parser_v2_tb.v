@@ -77,11 +77,11 @@ module ethernet_rx_parser_v2_tb;
 
         // --- Test Case 2: Long Packet (4 beats of payload, PASS) ---
         $display("[Time %0t] Test 2: Sending Long Packet (PASS)", $time);
-        //send_long_udp_packet(4);
+        send_long_udp_packet(4);
 
         #(CLK_PERIOD * 5);
         
-        /*
+        
         // --- Test Case 3: Invalid EtherType (FAIL: DROP state expected) ---
         $display("[Time %0t] Test 3: Sending Invalid EtherType (Expect DROP)", $time);
         // BEAT 0: Dst MAC + Src MAC High
@@ -96,34 +96,12 @@ module ethernet_rx_parser_v2_tb;
         send_axis_word(64'h40_11_0000_C0A8, 8'hFF, 0);
         send_axis_word(64'h0001_C0A80002, 8'hFF, 0);
         send_axis_word(64'h1388_2710_001C_0000, 8'hFF, 0);
-        send_axis_word(64'hDEADBEEF_BEEFCAFE, 8'hFF, 1); // Last beat
-        
-        #(CLK_PERIOD * 5);
-
-        // --- Test Case 4: Valid EtherType, Invalid IP Protocol (FAIL: DROP state expected) ---
-        $display("[Time %0t] Test 4: Sending Invalid IP Protocol (Expect DROP)", $time);
-        // BEAT 0: Dst MAC + Src MAC High
-        send_axis_word(64'h000A35000102_000A, 8'hFF, 0); 
-        
-        // BEAT 1: Src MAC Low + Ethertype (0800 - OK) + IP Ver (45) + TOS (00)
-        send_axis_word(64'h35000001_0800_4500, 8'hFF, 0);
-
-        // BEAT 2: IP Len + ID + Frag
-        send_axis_word(64'h0030_1234_4000_0000, 8'hFF, 0); 
-
-        // BEAT 3: TTL + Proto (17=UDP -> 06=TCP, not UDP) + Cksum + SrcIP High
-        // Protocol is 06, which should fail the check in IP_BEAT2 and transition to DROP.
-        send_axis_word(64'h40_06_0000_C0A8, 8'hFF, 0); 
-
-        // Remaining beats must be sent and discarded until tlast
-        send_axis_word(64'h0001_C0A80002, 8'hFF, 0);
-        send_axis_word(64'h1388_2710_001C_0000, 8'hFF, 0);
-        send_axis_word(64'hDEADBEEF_BEEFCAFE, 8'hFF, 1); // Last beat
+        send_axis_word(64'hFFFFFFFF_FFFFFFFF, 8'hFF, 1); // Last beat
 
 
         #(CLK_PERIOD * 20);
         
-        */
+        
         $display("--- Simulation Finished ---");
         $finish;
     end
