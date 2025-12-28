@@ -42,9 +42,8 @@ Each Ethernet interface consists of the following hardware path:
 
 2. **DP83867IR Gigabit PHY**  
    Converts copper Ethernet signaling into digital RGMII signals.  
-
-Handles:
-
+   
+   Handles:
    - Line coding / decoding  
    - Auto-negotiation  
    - Speed selection (10/100/1000)
