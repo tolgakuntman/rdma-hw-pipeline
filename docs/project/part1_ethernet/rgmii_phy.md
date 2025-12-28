@@ -281,6 +281,7 @@ With the default settings:
 ![kria.png](images/kria.png)
 
 If LINK LED is off:
+
 - Wrong PHY address  
 - Autoneg disabled  
 - Cable issue  
