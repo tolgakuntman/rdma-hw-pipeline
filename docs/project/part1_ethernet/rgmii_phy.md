@@ -3,17 +3,18 @@
 This chapter documents the RGMII-based Ethernet PHY used in the KR260 PL Ethernet interface and how it is configured and used together with the **AXI 1G/2.5G Ethernet Subsystem (PG138)** and our Vitis software. 
 
 The focus is on:
-
+- Different types of Media-independent interfaces (MII) and their properties
 - What RGMII actually is (signals, timing, clocking).
-- How the **TI DP83867** PHY on the KR260 is wired and configured.
-- How MDIO is used from software to control the PHY (BMCR/BMSR, autonegotiation, etc.).
+- How the **TI DP83867IR** PHY on the KR260 is wired and configured.
 - How the PHY and MAC (AXI Ethernet IP) interact to produce a working 1 Gbps link.
+
+The PHY can be explained through its two main interfaces: MDIO and RGMII. I already have a separate section dedicated to MDIO, where I describe how the PHY is configured and how its status is monitored. This section will focus on RGMII, which is the primary data path between the MAC and the PHY and the most important connection between them. That is why I chose to include PHY in the title of this section instead of MDIO.
 
 ---
 
 ## 1. KR260 Ethernet Hardware Overview
 
-The KR260 carrier card integrates two PL-based Gigabit Ethernet interfaces implemented through **RGMII** and connected to two discrete PHY devices. These interfaces form the physical entry point for all Ethernet frames used in our PL-side data pipeline.
+The KR260 integrates two PL-based Gigabit Ethernet interfaces implemented through **RGMII** and connected to two discrete PHY devices. These interfaces form the physical entry point for all Ethernet frames used in our PL-side data pipeline.
 
 This section summarizes the hardware components involved and how Ethernet signals reach the FPGA fabric.
 
@@ -28,8 +29,7 @@ According to the KR260 Carrier Card User Guide (UG1092), the PL exposes two RGMI
 
 Each port is implemented using a dedicated **TI DP83867** Gigabit Ethernet PHY.
 
-> **NOTE (image placeholder):**  
-> Add a schematic excerpt showing the PL Ethernet port area.
+![kria](images/kria.png)
 
 ---
 
@@ -40,29 +40,30 @@ Each Ethernet interface consists of the following hardware path:
 1. **RJ45 jack with integrated magnetics**  
    Provides isolation and differential coupling for 10/100/1000BASE-T.
 
-2. **DP83867 Gigabit PHY**  
+2. **DP83867IR Gigabit PHY**  
    Converts copper Ethernet signaling into digital RGMII signals.  
-   Handles:
+
+Handles:
+
    - Line coding / decoding  
    - Auto-negotiation  
-   - MDI/MDI-X  
-   - Link timing recovery  
    - Speed selection (10/100/1000)
 
 3. **RGMII interface into FPGA PL**  
-   - `TXD[3:0]`, `TX_CTL`, `TXC`  
-   - `RXD[3:0]`, `RX_CTL`, `RXC`  
-   Clocking and signaling details are covered in Section 2.
+   
+   - `rgmii_td[3:0]`, `rgmii_tx_ctl`, `rgmii_txc`  
+   - `rgmii_rd[3:0]`, `rgmii_rx_ctl`, `rgmii_rxc`  
 
-4. **AXI 1G/2.5G Ethernet Subsystem (MAC)**  
+   ![rgmii](images/rgmii_ports.png)
+
+4. **AXI 1G/2.5G Ethernet Subsystem (MAC)** 
+
    The MAC consumes RGMII signals and exposes:
    - AXI-Stream TX/RX interfaces  
    - MDIO management  
    - FCS generation and checking  
    - MAC address filtering  
-
-> **NOTE (image placeholder):**  
-> Add a screenshot of the AXI Ethernet block in Vivado with RGMII pins expanded.
+ 
 
 ---
 
