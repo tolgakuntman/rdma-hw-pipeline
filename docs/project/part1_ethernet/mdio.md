@@ -216,7 +216,11 @@ The reason we perform two consecutive reads each loop iteration is that in DP838
 
 ### 4. MDIO in the KR260
 
-On the KR260, the AXI Ethernet Subsystem is instantiated in the PL and connected to the PS through the s_axi interface. All PHY management happens through the MDIO pins exposed by this IP. The MAC’s MDIO controller drives the MDC clock and controls the MDIO bidirectional data line, while the DP83867 PHY responds on the same bus. During system startup, the PS software initializes the AXI Ethernet core over s_axi, and as part of XAxiEthernet_CfgInitialize(), the driver automatically enables the MDIO block and programs the MDIO clock divider so that the generated MDC frequency meets the IEEE requirement (≤ 2.5 MHz). Once the MAC and its MDIO controller are active, all PHY control and monitoring operations—register reads, BMCR writes, autonegotiation control, RGMII configuration, link polling—are performed through MDIO transactions initiated by XAxiEthernet_PhyRead() and XAxiEthernet_PhyWrite(). In other words, MDIO forms the entire control plane between PS software and the external DP83867 PHY, while the RGMII interface simultaneously forms the data plane carrying the actual Ethernet traffic.
+On the KR260, the AXI Ethernet Subsystem is instantiated in the PL and connected to the PS through the s_axi interface. All PHY management is handled through the MDIO pins exposed by this IP. The MAC’s MDIO controller drives the MDC clock and controls the bidirectional MDIO data line, while the DP83867 PHY responds on the same bus.
+
+During system startup, the PS software initializes the AXI Ethernet core over s_axi, and as part of XAxiEthernet_CfgInitialize(), the driver automatically enables the MDIO block and programs the MDIO clock divider so that the generated MDC frequency meets the IEEE requirement (≤ 2.5 MHz).
+
+Once the MAC and its MDIO controller are active, all PHY control and monitoring operations—register reads, BMCR writes, autonegotiation control, RGMII configuration, and link polling—are performed through MDIO transactions initiated by XAxiEthernet_PhyRead() and XAxiEthernet_PhyWrite(). In other words, MDIO forms the entire control plane between the PS software and the external DP83867 PHY, while the RGMII interface simultaneously forms the data plane that carries the actual Ethernet traffic.
 
 ---
 
