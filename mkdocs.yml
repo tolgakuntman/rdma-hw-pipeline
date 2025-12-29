@@ -4,7 +4,7 @@ theme:
   custom_dir: 'theme'
   features:
     - navigation.tabs
-#    - navigation.sections
+    #- navigation.sections
     - toc.integrate
     - navigation.top
     - search.suggest
@@ -74,7 +74,7 @@ copyright: |
   &copy; 2024 <a href=""  target="_blank" rel="noopener">TEAM Name</a>
 
 nav:
-  - Project: # This can be a grouping header, in that case do not put a file name behind it 
+  - Project:
     - Overview:
       - Subtasks: project/overview.md
     - Kria SoM:
@@ -93,10 +93,23 @@ nav:
     - AXIS RX/TX_to_RDMA Block: project/part1_ethernet/rxtx_axis_to_rdma.md
     - RX/TX Ethernet Tests: project/part1_ethernet/rxtx_path.md
     - RDMA RX: project/part1_ethernet/combined_bd.md
-  - Part 2: 
-    - IP Encapsulator : 
-      - Info : project/ip_encapsulator/ip_encapsulator_text.md
+  - Part 2:
+    - IP Encapsulator:
+      - Overview : project/ip_encapsulator/overview.md
+      - Interfaces : project/ip_encapsulator/interfaces.md
+      - Metadata Alignment : project/ip_encapsulator/meta_align.md
+      - Length Calculation : project/ip_encapsulator/length_calc.md
+      - Endpoint Lookup Table : project/ip_encapsulator/endpoint_lookup.md
+      - IPv4 Header : project/ip_encapsulator/ipv4_header.md
+      - UDP Header : project/ip_encapsulator/udp_header.md
+      - Ethernet Header : project/ip_encapsulator/eth_header.md
+      - Header Packer : project/ip_encapsulator/header_packer.md
+      - Flow Control : project/ip_encapsulator/flow_control.md
+      - Axi Lite Registers : project/ip_encapsulator/axi_lite_regs.md
+      - Testbench : project/ip_encapsulator/ip_encapsulator_tb.md
+    - IP Decapsulator: 
+      - Ethernet RX Parser : project/ip_encapsulator/ethernet_rx_parser.md
+      - Testbench : project/ip_encapsulator/ethernet_rx_parser_tb.md
+    - ARP Table Logic : project/ip_encapsulator/arp_table.md
   #- Part 3:
   #- Part 4:
-
-      
