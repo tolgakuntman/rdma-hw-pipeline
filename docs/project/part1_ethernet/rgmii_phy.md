@@ -210,7 +210,7 @@ When the AXI Ethernet Subsystem operates in a multi-speed environment—meaning 
 
 ### 3.3 Tri-Mode Ethernet MAC and PHY Communication with RGMII in Detail
 
-Our PL ethernet block contains Tri-Mode MAC which supports three different speeds however the ethernet block itself only supports 1GBPS. Therefore, when we look at the Tri-Mode Ethernet MAC LogiCORE IP Product Guide (PG051) to see our diagram and RGMII explanation we should look at **1 Gbps Ethernet MAC Core Interfaces**. The following figures and informations are taken under 1GBPS section.
+Our PL ethernet block contains Tri-Mode MAC which supports three different speeds however the ethernet block itself only supports 1GBPS. Therefore, when we look at the Tri-Mode Ethernet MAC LogiCORE IP Product Guide (PG051) to see our diagram and RGMII explanation, we should look at **1 Gbps Ethernet MAC Core Interfaces** part. The following figures and informations are taken under 1GBPS section.
 
 **1 Gbps RGMII Transmitter and Clock Logic:**
 The logic required to implement the RGMII transmitter logic is shown in the figure. The `gtx_clk`  is a user-supplied 125 MHz reference clock source which is placed onto global clock routing to provide the clock for all transmitter logic, both within the core and for the user-side logic which connects to the transmitter AXI4-Stream interface of the core.
@@ -221,7 +221,7 @@ Figure shows how to use the physical transmitter interface of the core to create
 
 **Note:** For UltraScale+ devices, RGMII interface logic uses only the IDELAY/ODELAY components to provide skew between clock and data lines.
 
-Even though our Ethernet subsystem includes a TEMAC, the KR260 design supports only 1 Gbps operation. Still, I want to demonstrate how the MAC internally generates the effective `GTX_CLK` for different Ethernet speeds while always receiving the same `gtx_clk` input clock. One detail that can be confusing is the naming: in the TI DP83867CS datasheet, the RGMII transmit clock pin on the PHY is labeled `GTX_CLK`, even though the MAC also takes an input clock called `gtx_clk`. These are not the same signal—the MAC-side `gtx_clk` is a 125-MHz reference clock used to drive the transmitter logic, while the PHY-side `GTX_CLK` is the forwarded RGMII transmit clock going to the RJ-45.
+Even though our Ethernet subsystem includes a TEMAC, the KR260 design supports only 1 Gbps operation. Still, I want to demonstrate how the MAC internally generates the effective `GTX_CLK` for different Ethernet speeds while always receiving the same `gtx_clk` input clock. One detail that can be confusing is the naming: in the TI DP83867CS datasheet, the RGMII transmit clock pin on the PHY is labeled `GTX_CLK`, even though the MAC also takes an input clock called `gtx_clk`. These are not the same signal—the MAC-side `gtx_clk` is a 125-MHz reference clock used to drive the transmitter logic, while the PHY-side `GTX_CLK` is the forwarded RGMII transmit clock.
 
 Another key point is that the TEMAC always uses the same 125-MHz clock for all three Ethernet speeds (10/100/1000 Mbps). This was my biggest confusion when I started working with PL Ethernet, because the MAC requires a pure 125-MHz clock even when the link operates at lower speeds. The way TEMAC achieves different data rates using a fixed 125-MHz reference is explained in the Tri-Speed RGMII Transmitter and Clock Logic section and illustrated in the figure below.
 

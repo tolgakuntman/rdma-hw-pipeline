@@ -92,7 +92,7 @@ nav:
     - Clocking & Timing: project/part1_ethernet/timing_clocks.md
     - AXIS RX/TX_to_RDMA Block: project/part1_ethernet/rxtx_axis_to_rdma.md
     - RX/TX Ethernet Tests: project/part1_ethernet/rxtx_path.md
-    - Combined Block Design: project/part1_ethernet/combined_bd.md
+    - RDMA RX: project/part1_ethernet/combined_bd.md
   - Part 2: 
     - IP Encapsulator : 
       - Info : project/ip_encapsulator/ip_encapsulator_text.md

@@ -23,49 +23,42 @@ Part-1 covers the following elements in full detail:
 ### AXI Ethernet Subsystem (MAC) Configuration
 
 - TX/RX AXI-Stream interface behavior  
-- Status channel decoding  
-- FCS handling (strip/keep)  
-- Flow control and pause frame behavior  
 - MAC address configuration  
-- Clocking mode (GTX clock vs recovered clock)  
+- Clocking mode (GTX clock) 
 
-### Full TX Pipeline (Stand-Alone Test Mode)
+### Full TX Pipeline (Separate Tx test)
 A dedicated AXI-Stream pattern generator transmits known Ethernet frames to validate:
 
 - RGMII routing  
-- MAC TX behavior  
-- Clock timing relationship (TXC vs TXD)  
+- MAC TX behavior   
 - Wireshark packet correctness  
-- End-to-end electrical and timing integration  
 
 This TX path was crucial for verifying physical connectivity and MAC/PHY configuration before integrating RDMA logic.
 
 ### Full RX Pipeline (Integrated With RDMA)
 
 The RX pipeline implemented in Part-1 forms the front-end of the final RDMA receive architecture:
-RGMII → Ethernet PHY → AXI Ethernet MAC (RX)→ s_axis_rxd + s_axis_rxs → axis_rx_to_rdma → RDMA decapsulation logic 
+Ethernet PHY → RGMII →AXI Ethernet MAC (RX)→ s_axis_rxd + s_axis_rxs → axis_rx_to_rdma → RDMA decapsulation logic 
 
 This path is responsible for:
 
 - Loss-free AXI-Stream forwarding under backpressure  
 - Correct `tlast`, `tkeep`, and status handling  
-- Packet framing for RDMA header parser  
 - Eliminating the timing hazards of AXI-Stream valid/ready behavior
 
 The custom RX buffer (`axis_rx_to_bram`) was one of the most critical modules in the entire RDMA pipeline.
 
 ---
 
-## 2. Motivation and Requirements
+## 2. Requirements
 
 RDMA packets arrive as raw Ethernet frames. The higher RDMA layers (header parser, queue logic, DDR writer) require:
 
-1. **Correctly delimited frames**
-2. **Zero data loss**
-3. **Correct packet boundaries (`tlast`)**
-4. **Stable AXI-Stream behavior under backpressure**
-5. **Low-latency delivery into header parser**
-6. **Deterministic timing from RGMII → MAC → AXIS**
+1. **Zero data loss**
+2. **Correct packet boundaries (`tlast`)**
+3. **Stable AXI-Stream behavior under backpressure**
+4. **Low-latency delivery into header parser**
+5. **Deterministic timing from RGMII → MAC → AXIS**
 
 The Ethernet subsystem in Part-1 is responsible for guaranteeing all of these properties.
 
@@ -75,8 +68,6 @@ Even a single dropped or mis-aligned 32-bit word would break:
 - Queue number extraction  
 - Payload alignment  
 - Completion queue updates  
-
-This is why our AXI-Stream buffering and MAC configuration are documented in extreme detail.
 
 ---
 
@@ -96,7 +87,7 @@ Verified:
   - PHY negotiation
   - RGMII routing
   - MAC address correctness
-  - Header fields and FCS behavior
+  - Header fields 
 
 This stage confirmed the hardware stack was electrically and logically correct.
 
@@ -116,18 +107,10 @@ Software reads BRAM to verify:
   - Payload fidelity  
   - AXI-Stream `tvalid/tready` timing
 
-This stage identified and resolved the **critical backpressure bug**:
-
-- A one-deep buffer must hold data stable whenever `valid=1 && ready=0`
-
-Without this fix, multicycle stalls in the RDMA validator caused random word loss.
-
 ---
 
 ### **Stage 3 — Final RDMA RX Integration**
-The validated RX pipeline was connected to the complete RDMA decapsulation chain (from the provided PDF):
-MAC RX → axis_rx_to_rdma  → RDMA Header Parser → RDMA Payload Writer → DDR via AXI DMA
-
+The validated RX pipeline was connected to the complete RDMA decapsulation chain.
 
 This integration demonstrated:
 
@@ -144,39 +127,21 @@ This is the final configuration used in the project.
 
 These insights guide the later parts of the RDMA pipeline.
 
-### **4.1 AXI-Stream Timing Is Not Optional — It Is EVERYTHING**
+### **4.1 AXI-Stream Timing Is Very Important**
 We learned through debugging that:
 
-- `valid` must remain high  
+- while `ready=0` `valid` must remain high  
 - `data` and `keep` **must not change**  
-- while `ready=0`
-
-Otherwise:
-
-- RDMA header parser receives corrupted words  
-- Packets fragment  
-- Partial payloads appear in DDR  
 
 Our `axis_rx_to_bram` module enforces this rule strictly.
 
+Validator of decapsulator hangs the line for multiple clock cycles so it was important to keep the valid bit until that handshake happens. Otherwise, the first word of rdma header was lost which was opcode so the write DDR operation failed.
+
 ---
 
-### **4.2 RGMII Always Uses 125 MHz (Even at 10/100 Mbps)**
+### **4.2 Ethernet Block Always Uses 125 MHz for gtx_clk (Even at 10/100 Mbps)**
 The MAC *always* requires a 125 MHz clock, regardless of negotiated link speed.  
-The PHY internally divides its clock to achieve 10/100 operation.
-
-This was a critical clarification when interpreting PG138 and fixing clocking.
-
----
-
-### **4.3 AXI Ethernet Status Channel Was Misunderstood Initially**
-Correct meaning from PG138 (page 116):
-
-- `tdata[15:0]`  → **frame length**
-- `tdata[31:16]` → **VLAN/aux fields**
-- `bit0`         → **frame_ok flag**
-
-This correction prevented misalignment in RDMA payload length calculation.
+The PHY internally divides its clock to achieve 10/100 operation (not for our case since our ethernet ip block only supports 1 gbps ).
 
 ---
 
@@ -185,10 +150,8 @@ We learned:
 
 - PHY negotiates speed with link partner  
 - MAC speed must be explicitly configured  
-- RGMII timing always expects 125 MHz refclk  
-- PHY output clocking adapts internally  
+- RGMII timing always expects 125 MHz gtx_clk  
 
-This cleared up multiple misunderstandings about GMII vs RGMII.
 
 ---
 
@@ -196,31 +159,30 @@ This cleared up multiple misunderstandings about GMII vs RGMII.
 
 Part-1 is documented across several detailed sections:
 
-- **`timing_clocks.md`** – Clocking architecture  
-- **`rgmii_phy.md`** – PHY electrical & logical behavior  
-- **`tx_path.md`** – TX pipeline  
-- **`rx_path.md`** – RX pipeline  
-- **`rx_axis_to_rdma.md`** – Custom RX buffer module  
-- **`axi_ethernet_subsystem.md`** – MAC configuration & internals  
-- **`combined_bd.md`** – Final RDMA integration  
-- **`vitis_sw_init.md`** – PHY bring-up software  
+- **AXI Ethernet MAC** – MAC configuration & internals
+- **RGMII & PHY** – PHY electrical & logical behavior RGMMI explanations
+- **MDIO** – MDIO logic and how we use it to reach PHY registers  
+- **Clocking & Timing** – Clocking architecture  
+- **- AXIS RX/TX_to_RDMA Block:** – Custom RX pass through module controlling txd, txc, rxd, rxs pins of ethernet ip block
+- **RX/TX Ethernet Tests** – TX RX tests separate from RDMA logic  
+- **RDMA RX** – Final RDMA integration  
 
-Each file focuses on a single subtopic.
+
+Each file focuses on a specific subtopic, and I explained everything as clearly and thoroughly as possible. I did not only cover the block design and its settings, but also the underlying logic and design principles. For this reason, I went through every relevant detail and compared the different interfaces, explaining why we use them and how they operate.
 
 ---
 
 ## 6. Summary
 
-Part-1 provides the entire foundational Ethernet subsystem required for the RDMA receiver.  
+Part-1 of RDMA project provides the entire foundational Ethernet subsystem required for the RDMA receiver.  
 It handles:
 
-- PHY configuration  
-- MAC configuration  
-- TX frame validation  
-- RX frame forwarding  
+- PHY configuration initialization and configuration 
+- MAC configuration and link setup 
+- TX path handling   
+- RX path handling
 - AXI-Stream correctness  
-- Backpressure-safe buffering  
+- Backpressure-safe buffering and flow control  
 - Integration with the full RDMA pipeline  
 
-Without this subsystem, the RDMA receiver cannot operate.
 
