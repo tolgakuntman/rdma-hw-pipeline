@@ -1,0 +1,77 @@
+flowchart LR
+    subgraph PS["PS Software<br/>(ARM Cortex-A53)"]
+        PS1["• Write SQ descriptor<br/>• Cache flush<br/>• Ring doorbell (SQ_TAIL)<br/>• Poll CQ_TAIL<br/>• Read completion<br/>• Cache invalidate"]
+    end
+
+    subgraph REG["AXI-Lite<br/>Registers"]
+        REG1["SQ_BASE/SIZE<br/>SQ_HEAD/TAIL<br/>CQ_BASE/SIZE<br/>CQ_HEAD/TAIL<br/>CONTROL/STATUS"]
+    end
+
+    subgraph CTRL["RDMA Controller<br/>(rdma_controller.v)"]
+        CTRL1["• Detect doorbell<br/>• Fetch SQ descriptor<br/>• Parse fields<br/>• Issue tx_cmd<br/>• Write CQ entry<br/>• Update pointers"]
+    end
+
+    subgraph TX["TX Path"]
+        TX1["tx_streamer<br/>• Fragment logic<br/>• Issue MM2S cmd"]
+        TX2["tx_header_inserter<br/>• 7-beat header<br/>• Payload pass-through"]
+        TX3["DataMover MM2S<br/>• Read payload from DDR"]
+    end
+
+    subgraph FIFO["Loopback FIFO<br/>(axis_data_fifo)"]
+        FIFO1["Elastic buffering<br/>Preserves TLAST"]
+    end
+
+    subgraph RX["RX Path"]
+        RX1["rx_header_parser<br/>• Extract 7-beat header<br/>• Forward payload"]
+        RX2["rx_streamer<br/>• Check opcode<br/>• Issue S2MM cmd"]
+        RX3["DataMover S2MM<br/>• Write payload to DDR"]
+    end
+
+    subgraph DDR["DDR Memory"]
+        DDR1["• SQ buffer<br/>• CQ buffer<br/>• Payload buffers"]
+    end
+
+    subgraph LEGEND["Key Flows"]
+        L1["① Control: doorbell → descriptor fetch → tx_cmd<br/>② TX Data: header (7×32b) + payload → FIFO<br/>③ RX Data: FIFO → parse header → S2MM write<br/>④ Completion: CQ write → pointer update → SW poll<br/><br/>⚠ Polling only • 7-beat header • No interrupts"]
+    end
+
+    %% Control path
+    PS1 <-->|"AXI-Lite<br/>read/write"| REG1
+    REG1 <-->|"doorbell,<br/>pointers"| CTRL1
+    CTRL1 <-->|"descriptor fetch,<br/>CQ write (S2MM)"| DDR1
+    CTRL1 -->|"tx_cmd<br/>(opcode, addrs, len)"| TX1
+
+    %% TX data path
+    TX1 -->|"start_tx,<br/>header fields"| TX2
+    TX1 -->|"MM2S cmd"| TX3
+    TX3 <-->|"read payload"| DDR1
+    TX3 -->|"payload stream"| TX2
+    TX2 -->|"header + payload<br/>(TLAST)"| FIFO1
+
+    %% RX data path
+    FIFO1 -->|"buffered stream"| RX1
+    RX1 -->|"header_valid,<br/>payload stream"| RX2
+    RX2 -->|"S2MM cmd"| RX3
+    RX3 <-->|"write payload"| DDR1
+
+    %% Completion path
+    TX1 -.->|"tx_cpl_valid"| CTRL1
+
+    %% Styling
+    classDef psStyle fill:#e1f5ff,stroke:#01579b,stroke-width:3px
+    classDef regStyle fill:#fce4ec,stroke:#880e4f,stroke-width:2px
+    classDef ctrlStyle fill:#fff3e0,stroke:#e65100,stroke-width:3px
+    classDef txStyle fill:#ffe0b2,stroke:#e65100,stroke-width:2px
+    classDef fifoStyle fill:#fff9c4,stroke:#f57f17,stroke-width:3px
+    classDef rxStyle fill:#f3e5f5,stroke:#4a148c,stroke-width:2px
+    classDef ddrStyle fill:#e8f5e9,stroke:#1b5e20,stroke-width:3px
+    classDef legendStyle fill:#eceff1,stroke:#37474f,stroke-width:2px
+
+    class PS1 psStyle
+    class REG1 regStyle
+    class CTRL1 ctrlStyle
+    class TX1,TX2,TX3 txStyle
+    class FIFO1 fifoStyle
+    class RX1,RX2,RX3 rxStyle
+    class DDR1 ddrStyle
+    class L1 legendStyle

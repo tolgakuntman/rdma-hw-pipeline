@@ -111,5 +111,14 @@ nav:
       - Ethernet RX Parser : project/ip_encapsulator/ethernet_rx_parser.md
       - Testbench : project/ip_encapsulator/ethernet_rx_parser_tb.md
     - ARP Table Logic : project/ip_encapsulator/arp_table.md
-  #- Part 3:
-  #- Part 4:
+  - Part 3:
+    - RDMA Logic:
+      - Introduction: project/RDMA_logic/ch1_introduction.md
+      - System Overview: project/RDMA_logic/ch2_system_overview.md
+      - Hardware Architecture: project/RDMA_logic/ch3_hardware_architecture.md
+      - Control Plane Architecture: project/RDMA_logic/ch4_control_plane_architecture.md
+      - RDMA Control Flow: project/RDMA_logic/ch5_rdma_control_flow.md
+      - Evaluation & Design Tradeoffs: project/RDMA_logic/ch6_evaluation_and_design_tradeoffs.md
+      - Results & Conclusion: project/RDMA_logic/ch7_results_and_conclusion.md
+      - Future Work: project/RDMA_logic/ch8_future_work.md
+
