@@ -46,72 +46,31 @@ The system comprises six functional domains that interact through well-defined i
 
 ### 2. RDMA Controller (PL) — Control Plane FSM
 
-**Responsibilities:**
-- Implement the control plane for RDMA operations
-- Fetch SQ descriptors via [DataMover](https://www.xilinx.com/support/documents/ip_documentation/axi_datamover/v5_1/pg022_axi_datamover.pdf) MM2S channel
-- Orchestrate data movement by issuing commands to TX streamer
-- Generate 32-byte CQ entries and write to DDR via [DataMover](https://www.xilinx.com/support/documents/ip_documentation/axi_datamover/v5_1/pg022_axi_datamover.pdf) S2MM
-- Own SQ_HEAD and CQ_TAIL hardware pointers
-- Interface with [DataMover](https://www.xilinx.com/support/documents/ip_documentation/axi_datamover/v5_1/pg022_axi_datamover.pdf) command and status channels
-
-**Implemented in:** `rdma_controller.v`  
-**Key signals:** `tx_cmd`, `tx_cpl`, `SQ_HEAD`, `CQ_TAIL`
+The global coordinator that manages submission and completion queues, orchestrates data movement, and owns all queue pointers (SQ_HEAD, CQ_TAIL). See [Section 3](ch3_hardware_architecture.md) for detailed implementation.
 
 ---
 
 ### 3. Transmit Data Path (PL) — Header + Payload Streaming
 
-**Responsibilities:**
-- Convert SQ descriptor into RDMA packet format
-- Construct 7-beat (28-byte) RDMA headers with field serialization
-- Issue MM2S [DataMover](https://www.xilinx.com/support/documents/ip_documentation/axi_datamover/v5_1/pg022_axi_datamover.pdf) commands for payload reads from DDR
-- Serialize header + payload as continuous AXI-Stream
-- Handle fragmentation for 4 KB boundary alignment
-
-**Implemented in:** `tx_streamer.v`, `tx_header_inserter.v`  
-**Key signals:** `start_tx`, `hdr_tx_done`, `mm2s_rd_xfer_cmplt`
+Converts SQ descriptors into RDMA packets by constructing headers, reading payloads from DDR, and streaming the combined data. Handles fragmentation for transfers exceeding 4 KB boundaries. See [Section 3.3](ch3_hardware_architecture.md#33-transmit-path-tx) for detailed implementation.
 
 ---
 
-### 4. Loopback AXI STREAM FIFO (PL) — Elastic Buffering
+### 4. Loopback FIFO (PL) — Elastic Buffering
 
-**Responsibilities:**
-- It's only implemented to test the RDMA logic in one board. 
-- It acts like the IP modules and the ethernet modules of the project.
-- Buffer transmitted packets using AXI-Stream FIFO
-- Preserve packet boundaries (TLAST propagation)
-- Handle backpressure between TX and RX paths
-- Enable self-contained validation without external networking
-
-**Implemented in:** `axis_data_fifo_0` (Xilinx IP)  
-**Interface:** 32-bit AXI-Stream with TVALID/TREADY/TLAST
+A Xilinx AXI-Stream FIFO that routes transmitted packets directly back to the receive path. This enables self-contained validation without external networking, preserving packet boundaries and handling backpressure between TX and RX paths.
 
 ---
 
 ### 5. Receive Data Path (PL) — Header Parsing + Payload Write
 
-**Responsibilities:**
-- Parse 7-beat RDMA headers from incoming AXI-Stream
-- Extract operation metadata (opcode, addresses, length)
-- Issue S2MM [DataMover](https://www.xilinx.com/support/documents/ip_documentation/axi_datamover/v5_1/pg022_axi_datamover.pdf) commands to write payload to DDR
-- Compute destination address as `remote_addr + fragment_offset`
-- Operate independently from RDMA controller (no CQ write on RX)
-
-**Implemented in:** `rx_header_parser.v`, `rx_streamer.v`  
-**Key signals:** `header_valid`, `s2mm_wr_xfer_cmplt`
+Parses incoming RDMA packets, extracts metadata from headers, and writes payloads to DDR at computed destination addresses. Operates independently from the RDMA controller. See [Section 3.4](ch3_hardware_architecture.md#34-receive-path-rx) for detailed implementation.
 
 ---
 
 ### 6. Shared DDR Memory — Queue Structures and Payload Buffers
 
-**Contents:**
-- **SQ buffer**: 64-byte descriptors at `SQ_BASE + (index × 64)`
-- **CQ buffer**: 32-byte completions at `CQ_BASE + (index × 32)`
-- **Payload buffers**: Application data at arbitrary addresses
-
-**Access:**
-- **PS**: Cache-coherent path (requires explicit flush/invalidate)
-- **PL**: Non-coherent DMA via [DataMover](https://www.xilinx.com/support/documents/ip_documentation/axi_datamover/v5_1/pg022_axi_datamover.pdf) (MM2S/S2MM)
+Hosts submission queue (SQ) descriptors, completion queue (CQ) entries, and payload buffers. The PS accesses memory through a cache-coherent path (requiring explicit flush/invalidate), while the PL uses non-coherent DMA via [DataMover](https://www.xilinx.com/support/documents/ip_documentation/axi_datamover/v5_1/pg022_axi_datamover.pdf). See [Section 3.2](ch3_hardware_architecture.md#32-queue-management-blocks-sq-and-cq) for queue structure details.
 
 ---
 
@@ -119,10 +78,10 @@ The system comprises six functional domains that interact through well-defined i
 
 A key architectural decision is the **strict separation** between control plane and data plane responsibilities:
 
-| **Plane** | **Components** | **Responsibilities** |
-|-----------|----------------|----------------------|
-| **Control Plane** | RDMA controller FSM | • Descriptor lifecycle management<br/>• Queue pointer updates (SQ_HEAD, CQ_TAIL)<br/>• Operation sequencing<br/>• Completion generation |
-| **Data Plane** | TX/RX streamers<br/>[DataMover](https://www.xilinx.com/support/documents/ip_documentation/axi_datamover/v5_1/pg022_axi_datamover.pdf) IP | • Moving bytes between DDR and AXI-Stream<br/>• Inserting and parsing headers<br/>• Handling backpressure and TLAST propagation<br/>• Fragmentation logic |
+- **Control Plane** (RDMA controller): Manages descriptor lifecycle, queue pointers, operation sequencing, and completion generation
+- **Data Plane** (TX/RX streamers, [DataMover](https://www.xilinx.com/support/documents/ip_documentation/axi_datamover/v5_1/pg022_axi_datamover.pdf)): Moves bytes between DDR and AXI-Stream, handles headers and backpressure
+
+This separation ensures control overhead does not block data throughput. See [Section 3](ch3_hardware_architecture.md) for detailed ownership boundaries.
 
 ---
 
@@ -130,15 +89,12 @@ A key architectural decision is the **strict separation** between control plane 
 
 All operations are initiated by **software-posted descriptors** residing in DDR. The hardware **never speculates** or generates work autonomously.
 
-![SQ/CQ pair](images/sq-cq-pair.jpeg)
-
-
 ### Execution Pipeline
 
 Once the SQ_TAIL pointer is advanced by software, the descriptor becomes visible to hardware and progresses through a **strictly ordered execution pipeline**:
 
 ```
-1. Fetch   → [DataMover](https://www.xilinx.com/support/documents/ip_documentation/axi_datamover/v5_1/pg022_axi_datamover.pdf) reads 64 bytes from SQ_BASE + (SQ_HEAD × 64)
+1. Fetch   → Read 64-byte SQ entry from DDR
 2. Parse   → Extract fields into internal registers
 3. Execute → TX streamer reads payload, constructs packet, streams to FIFO
 4. Complete → Write 32-byte CQ entry to DDR, update SQ_HEAD and CQ_TAIL
