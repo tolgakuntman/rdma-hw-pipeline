@@ -80,7 +80,7 @@ This region demonstrates that the design effectively scales once DMA efficiency 
 
 #### 3. Saturation Region (≥ 8 KB)
 
-Throughput plateaus at approximately **950–1000 MB/s**.
+Throughput saturates at approximately **950–1000 MB/s**.
 
 * The system reaches the practical bandwidth limit imposed by:
 
@@ -89,93 +89,36 @@ Throughput plateaus at approximately **950–1000 MB/s**.
   * AXI interconnect width and clocking
 * Increasing block size beyond this point does not yield additional throughput
 
-This plateau indicates that the RDMA data path is no longer the bottleneck; the design successfully drives the underlying memory system close to its sustainable limit.
+This saturation indicates that the RDMA data path is no longer the bottleneck; the design successfully drives the underlying memory system close to its sustainable limit.
 
 ---
 
-## 7.3 Interpretation and Design Implications
+## 7.3 Functional Validation via Loopback and Packet Inspection
 
-### Control-Plane Overhead Is Explicit and Visible
-
-Because the design is **descriptor-driven and strictly serialized**, the overhead of RDMA control operations is fully exposed in the small-block regime. This is an intentional design choice and aligns with the project’s goal of transparency rather than peak performance.
-
-### DataMover-Centric Architecture Is Effective
-
-The near-linear scaling up to saturation confirms that:
-
-* AXI DataMover is efficiently utilized
-* Backpressure handling across header insertion, FIFO buffering, and RX writeback is correct
-* No unintended stalls or bubbles exist in the steady-state data path
-
-### Single-Operation Execution Model
-
-The controller processes **one work queue entry at a time**, with no overlap between operations. As a result:
-
-* Maximum throughput is achieved through **payload size**, not concurrency
-* Higher throughput for small payloads would require:
-
-  * Multiple in-flight WQEs
-  * Deeper pipelining
-  * Parallel SQ processing
-
-These trade-offs were intentionally avoided to preserve simplicity and observability.
-
----
-
-## 7.4 Functional Validation via Loopback and Packet Inspection
-
-Although the loopback design bypasses Ethernet, packet correctness was validated both functionally (DDR buffer comparison) and structurally (packet-level inspection via ILA captures and Wireshark-style analysis).
-
-### Loopback Guarantees
-
-* Header insertion and parsing symmetry verified
-* Payload integrity confirmed by counter comparison in DDR
-* Fragmentation and reassembly paths exercised (when enabled)
-* 7-beat header format correctly serialized and extracted
+Although the loopback design bypasses Ethernet, packet correctness was validated both functionally (DDR buffer comparison) and structurally (packet-level inspection via Wireshark screenshots).
 
 ### Packet-Level Validation
 
-To verify the structural correctness of RDMA packets beyond functional DDR tests, the AXI-Stream traffic was captured and analyzed to confirm header format, field ordering, and payload alignment.
+To verify the structural correctness of RDMA packets beyond functional DDR tests, the output of the ethernet module was captured and analyzed to confirm header format, field ordering, and payload alignment.
 
 #### Packet Reception Confirmation
 
 ![Wireshark 4 Packets Received](images/wireshark_ss_4_packet_received.jpeg)
-*Figure 7.2: Capture showing successful reception of 4 RDMA packets in the loopback path. Each packet represents a complete header + payload transaction, demonstrating reliable end-to-end streaming without packet loss.*
+*Figure 7.2: Capture showing successful reception of 4 RDMA packets. Each packet represents a complete header + payload transaction, demonstrating reliable streaming without packet loss.*
 
 #### RDMA Header and Payload Structure
 
 ![RDMA Packet Header and Payload](images/wireshark_ss_rdma_package_header_and_payload.jpeg)
-*Figure 7.3: Detailed view of a single RDMA packet showing the 7-beat header section followed by payload data. The header contains the serialized fields (opcode, PSN, dest_qp, remote_addr, fragment_offset, length, partition_key, service_level) as described in Section 6.3.*
+*Figure 7.3: Detailed view of a single ethernet packet*
 
 #### Payload Data Inspection
 
 ![Wireshark Payload View](images/wireshark_ss_payload.jpeg)
-*Figure 7.4: Close-up view of the payload section, showing the application data that follows the RDMA header. This validates that the tx_header_inserter correctly transitions from header transmission to payload pass-through mode, and that TLAST propagation correctly marks packet boundaries.*
-
-These captures serve as **structural validation** of the packet format implementation, confirming that:
-- ✅ 7-beat header structure is correctly serialized (28 bytes)
-- ✅ Header-to-payload transition occurs without gaps or reordering
-- ✅ Payload data integrity is preserved through the loopback path
-- ✅ TLAST signaling correctly delineates packet boundaries
-- ✅ Multiple packets can be processed sequentially without corruption
+*Figure 7.4: Detailed view of a single RDMA packet showing the 7-beat header section followed by payload data. The header contains the serialized fields (opcode, PSN, dest_qp, remote_addr, fragment_offset, length, partition_key, service_level) as described in Section 6.3.*
 
 ---
 
-## 7.5 Limitations of the Current Results
-
-The reported results should be interpreted within the scope of the design:
-
-* No Ethernet MAC, PHY, or congestion effects
-* No retransmission, reliability, or ordering guarantees
-* No interrupt-driven completion handling
-* No concurrent SQ execution
-* No software-side descriptor construction during measurement
-
-As such, the results characterize the **internal RDMA engine**, not a full RDMA network stack.
-
----
-
-## 7.6 Conclusion
+## 7.4 Conclusion
 
 This project successfully demonstrates a complete RDMA-style execution pipeline implemented in FPGA logic, from software submission to hardware completion, with explicit control over memory movement and completion semantics.
 
@@ -187,4 +130,4 @@ Key outcomes:
 * Control and data paths are cleanly separated
 * The architecture is extensible toward full RDMA-over-Ethernet
 
-Most importantly, the design provides a **clear, inspectable baseline** upon which additional features—such as network transport, concurrency, and reliability—can be built without architectural rework.
+Most importantly, the design provides a **clear, inspectable baseline** upon which additional features, such as network transport, concurrency, and reliability, can be built without architectural rework.

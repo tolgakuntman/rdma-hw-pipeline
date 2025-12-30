@@ -58,8 +58,6 @@ By excluding Ethernet MAC, PHY, IP checksumming, and transport protocols, the de
 
 This isolation allows each pipeline stage to be debugged deterministically using ILA captures, waveform analysis, and software-side buffer inspection. Functional correctness can be established with high confidence before introducing transport complexity.
 
-In effect, the loopback design functions as a controlled execution environment for RDMA semantics. Once validated, the same rdma_controller, tx_streamer, rx_streamer, and queue management logic can be reused in a transport-backed design with minimal modification, as the internal interfaces (tx_cmd, tx_cpl, header fields) remain unchanged.
-
 ---
 
 ## 6.3 Limitations and DataMover-Centric Design Trade-offs
@@ -98,61 +96,11 @@ A key architectural decision is the reliance on Xilinx AXI DataMover IP for all 
 - **Reduced custom logic**: No need to implement custom AXI master FSMs, burst computation, or address boundary checks.
 
 **Disadvantages**:
-- **Fragmentation logic required**: The tx_streamer must respect 4 KB address boundaries and BLOCK_SIZE limits, computing chunk lengths and issuing multiple MM2S commands for large payloads (Section 5.3.5). This increases FSM complexity.
+- **Fragmentation logic required**: The tx_streamer must respect 1 KB address boundaries and BLOCK_SIZE limits, computing chunk lengths and issuing multiple MM2S commands for large payloads (Section 5.3.5). This increases FSM complexity.
 - **Command latency overhead**: Each DataMover operation requires a command handshake, internal processing delay, and completion signaling. For small payloads, command overhead may dominate execution time.
 - **Limited error visibility**: The DataMover's internal error conditions (address decode failures, timeout, FIFO overflow) are not fully exposed. The design monitors only the binary completion signals (Section 5.4.7).
 - **Increased FSM state count**: Command issuance, status waiting, and completion detection require dedicated FSM states (S_READ_CMD, S_WAIT_READ_DONE, S_WRITE_CMD, S_WAIT_WRITE_DONE, etc.), expanding the controller's state space.
 
 Despite these trade-offs, the DataMover-centric approach is well-suited for a proof-of-concept RDMA engine and aligns with SoC design best practices (reuse validated IP blocks, avoid reinventing DMA logic). For high-performance or multi-queue designs, the approach would require augmentation: custom DMA engines with pipelined command issuance, scatter-gather support, and direct error status propagation.
 
----
 
-## 6.4 Path to a Full RDMA over Ethernet Design
-
-The validated loopback design establishes a solid foundation for a transport-backed RDMA implementation over Ethernet (RoCEv2). Importantly, most of the core logic would remain unchanged, as the internal interfaces and transaction semantics are transport-agnostic.
-
-### 6.4.1 Reusable Components
-
-The following components would transfer directly to an Ethernet-based design:
-
-- **SQ and CQ ring management**: Circular queue logic with wraparound, pointer increment, and empty/full detection (Sections 6.1.2, 6.6.6)
-- **Descriptor fetch and completion writeback**: DataMover-based 64-byte SQ reads and 32-byte CQ writes, including address calculation and BTT setup (Sections 6.2.1-6.2.2, 6.6.3-6.6.4)
-- **RDMA header construction**: The 7-beat header serialization logic and field-to-descriptor mapping would extend naturally to full RoCEv2 headers (Section 5.3)
-- **DataMover-based payload transfers**: MM2S payload reads and fragmentation logic would remain applicable, though fragmentation thresholds might change to match MTU constraints (Section 5.4.4)
-- **Software-hardware register contract**: The AXI-Lite register map (SQ_BASE/SIZE, CQ_BASE/SIZE, SQ_TAIL doorbell, CQ_TAIL polling, CONTROL/STATUS) would remain unchanged (Sections 6.1.1, 6.7.1-6.7.4)
-- **Cache coherency model**: The flush/invalidate requirements at PS-PL boundaries would still apply, as the ARM caches remain independent of PL DMA paths (Section 6.7.7)
-
-### 6.4.2 Components Requiring Extension or Replacement
-
-The following components would require modification to support Ethernet transport:
-
-- **Loopback FIFO → Ethernet MAC + PHY**: The `axis_data_fifo_0` would be replaced with an Ethernet MAC/PCS/PMA stack. The tx_header_inserter output would connect to the MAC TX interface, and the MAC RX interface would connect to the rx_header_parser input.
-
-- **Header format extension**: The 7-beat header (28 bytes) would need extension to include full RoCEv2 fields: Ethernet header (14 bytes), IP header (20 bytes), UDP header (8 bytes), and InfiniBand Base Transport Header (12 bytes), plus optional RDMA Extended Transport Header (RETH) fields. The tx_header_inserter would require additional states and beat counters.
-
-- **RX path packet reassembly**: The rx_streamer would need extension to handle:
-  - IP fragmentation and reassembly across multiple Ethernet frames
-  - Out-of-order packet delivery (PSN tracking and reordering buffers)
-  - Multi-fragment RDMA messages with reassembly state machines
-
-- **Interrupt support (optional)**: For efficiency, the design could extend the CONTROL/STATUS register to support interrupt generation on CQ_TAIL advancement, reducing software polling overhead (Section 6.7.2).
-
-- **Flow control and congestion management**: RoCEv2 requires Priority Flow Control (PFC) or Explicit Congestion Notification (ECN) integration at the MAC layer to prevent buffer overflow during congestion.
-
-- **Error handling and retransmission**: The TX path would need ACK/NAK processing, retransmission buffers, and PSN progression logic. The RX path would need to generate ACK/NAK responses for received packets.
-
-### 6.4.3 Integration Strategy
-
-Because the core RDMA transaction logic (descriptor fetch, field latching, payload transfer, completion generation) is already validated independently of transport, integration with Ethernet becomes primarily an interface adaptation task:
-
-1. Replace the loopback FIFO with an Ethernet MAC wrapper that presents the same AXI-Stream interface (TDATA, TVALID, TREADY, TLAST).
-2. Extend the tx_header_inserter to serialize full Ethernet/IP/UDP/RoCEv2 headers (likely 60+ bytes, 15+ beats at 32 bits).
-3. Extend the rx_header_parser to extract fields from multi-protocol headers and validate checksums.
-4. Add RoCEv2 protocol state machines for ACK/NAK, retransmission, and PSN tracking.
-5. Integrate interrupt generation logic into the rdma_controller's CQ write completion path.
-
-The separation of concerns in the current design—where queue management, descriptor parsing, and completion generation are isolated from the data transport mechanism—is a key strength. This modularity enables incremental integration of transport complexity without requiring redesign of the validated core logic.
-
----
-
-**End of Section 7**

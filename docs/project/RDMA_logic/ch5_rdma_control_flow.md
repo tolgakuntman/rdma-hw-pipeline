@@ -1163,6 +1163,3 @@ After reinitialization, all queue pointers return to zero, and any in-flight ope
 
 **Not specified in provided code**: The exact behavior of CONTROL register reset/enable bits, whether they provide selective reset of the controller FSM without affecting DataMover state, required reset hold time, and whether writes to read-only pointer registers trigger any internal state changes. The test software does not demonstrate a soft reset sequence, suggesting this feature may not be fully implemented or validated.
 
----
-
-**End of Section 5.7**

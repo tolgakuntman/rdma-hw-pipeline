@@ -2,15 +2,13 @@
 
 ## 4.1 Hardware / Software Interface Overview
 
-The hardware-software interface in this RDMA proof-of-concept system is implemented via a single AXI4-Lite subordinate attached to the Zynq UltraScale+ Processing System (PS). The PS hosts bare-metal software executing on ARM Cortex-A53 cores, while the RDMA control and datapath logic resides in the Programmable Logic (PL). This architecture maintains a clear separation between control plane and data plane functions.
-
 ### 4.1.1 Interface Characteristics
 
-The AXI4-Lite interface is strictly a control and synchronization channel. Payload data does not traverse this interface; instead, data movement occurs through dedicated AXI4-MM and AXI4-Stream channels managed by hardware DMA engines. The AXI4-Lite slave provides memory-mapped access to 32-bit wide registers, totaling 32 register locations at 4-byte boundaries within a 128-byte address aperture.
+The AXI4-Lite interface is strictly a control and synchronization channel. Payload data does not traverse this interface. Instead, data movement occurs through dedicated AXI4-MM and AXI4-Stream channels managed by hardware DMA engines (data movers). The AXI4-Lite slave provides memory-mapped access to 32-bit wide registers, totaling 32 register locations at 4-byte boundaries within a 128-byte address space.
 
 ### 4.1.2 Control Plane Responsibilities
 
-All operation progress and completion detection is performed via polling; no interrupt-driven control flow is implemented. The control plane interface enables software to perform the following operations:
+All operation progress and completion detection is performed via polling. No interrupt-driven control flow is implemented. The control plane interface enables software to perform the following operations:
 
 - **Queue Configuration**: Initialize Send Queue (SQ) and Completion Queue (CQ) descriptor rings in system DDR memory by programming base addresses and queue depths.
 - **Queue Synchronization**: Coordinate producer-consumer operations through head and tail pointer updates. Software advances tail pointers to post new work; hardware advances head pointers as work completes.
@@ -37,17 +35,17 @@ The register file spans 128 bytes (0x00 to 0x7C) and comprises 32 word-aligned 3
 | 0x00   | CONTROL           | RW     | Global enable, soft reset, pause, mode control   |
 | 0x04   | HW_STATUS         | RO     | Hardware operational status word                 |
 | 0x08   | IRQ_ENABLE        | RW     | Interrupt enable mask                            |
-| 0x0C   | IRQ_STATUS        | W1C    | Interrupt status flags (write-1-to-clear)        |
-| 0x10   | GLOBAL_CFG        | RW     | Global configuration parameters                  |
+| 0x0C   | IRQ_STATUS        | RW     | Interrupt status flags                           |
+| 0x10   | RESERVED          | RW     | Reserved for future use                          |
 | 0x14   | RESERVED          | —      | Reserved for future use                          |
 | 0x18   | RESERVED          | —      | Reserved for future use                          |
-| 0x1C   | TEST_REG          | RW     | Test/debug register                              |
-| 0x20   | SQ_BASE_LO        | RW     | Send Queue base address [31:0]                   |
-| 0x24   | SQ_BASE_HI        | RW     | Send Queue base address [63:32]                  |
-| 0x28   | SQ_SIZE           | RW     | Send Queue depth (number of entries)             |
-| 0x2C   | SQ_HEAD           | RO     | Send Queue head pointer (HW-owned)               |
-| 0x30   | SQ_TAIL           | RW     | Send Queue tail pointer (SW-owned, doorbell)     |
-| 0x34   | SQ_DOORBELL       | WO     | Send Queue explicit doorbell trigger             |
+| 0x1C   | RESERVED          | -      | Reserved for future use                          |
+| 0x20   | SQ_BASE_LO        | RW     | Submission Queue base address [31:0]             |
+| 0x24   | SQ_BASE_HI        | RW     | Submission Queue base address [63:32]            |
+| 0x28   | SQ_SIZE           | RW     | Submission Queue depth (number of entries)       |
+| 0x2C   | SQ_HEAD           | RO     | Submission Queue head pointer                    |
+| 0x30   | SQ_TAIL           | RW     | Submission Queue tail pointer (doorbell)         |
+| 0x34   | RESERVED          | -      | Reserved for future use                          |
 | 0x38   | RESERVED          | —      | Reserved for future use                          |
 | 0x3C   | RESERVED          | —      | Reserved for future use                          |
 | 0x40   | CQ_BASE_LO        | RW     | Completion Queue base address [31:0]             |
@@ -68,7 +66,7 @@ The register file spans 128 bytes (0x00 to 0x7C) and comprises 32 word-aligned 3
 | 0x7C   | RDMA_BTT_3        | RO     | RDMA entry byte transfer count [127:96]          |
 
 **Legend:**  
-RW = Read-Write | RO = Read-Only | WO = Write-Only | W1C = Write-1-to-Clear
+RW = Read-Write | RO = Read-Only | WO = Write-Only 
 
 ### 4.2.2 Register Type Definitions
 
@@ -114,15 +112,8 @@ Queue pointers implement producer-consumer synchronization:
 
 Pointer values are indices (not byte addresses) and wrap to zero when incremented past SQ_SIZE or CQ_SIZE.
 
-### 4.2.7 Doorbell Registers
 
-Doorbell registers provide explicit notification mechanisms:
-
-- **SQ_DOORBELL (0x34, WO)**: Writing any value to this address triggers hardware to re-evaluate SQ_HEAD versus SQ_TAIL and resume queue processing if work is available. This register allows doorbell assertion without modifying SQ_TAIL, useful in scenarios where the tail pointer was previously updated but hardware may not have processed all entries.
-
-Write data to doorbell registers is discarded; only the write transaction itself is significant. The AXI4-Lite slave translates the write into a single-cycle pulse on internal control signals monitored by the RDMA controller FSM.
-
-### 4.2.8 Debug and Reserved Registers
+### 4.2.7 Debug and Reserved Registers
 
 Several registers provide diagnostic visibility:
 
@@ -132,7 +123,7 @@ Several registers provide diagnostic visibility:
 
 Reserved register addresses and bit fields are implementation-specific placeholders. Software should write zero to reserved bits and ignore values read from reserved fields to ensure forward compatibility.
 
-### 4.2.9 Access Guidelines
+### 4.2.8 Access Guidelines
 
 Software should observe the following access patterns:
 
@@ -144,5 +135,3 @@ Software should observe the following access patterns:
 Access width must be 32-bit aligned. Unaligned or narrow (8/16-bit) accesses may result in undefined behavior depending on AXI4-Lite interconnect and slave configuration. Burst transactions are not supported; all accesses must be single-word transactions.
 
 ---
-
-**End of Section 5**
