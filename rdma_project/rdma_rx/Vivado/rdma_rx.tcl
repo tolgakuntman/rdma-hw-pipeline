@@ -32,7 +32,7 @@ proc checkRequiredFiles { origin_dir} {
   set files [list \
  "[file normalize "$origin_dir/src/rx_streamer.v"]"\
  "[file normalize "$origin_dir/src/rx_header_parser.v"]"\
- "[file normalize "$origin_dir/src/axis_rx_to_bram.v"]"\
+ "[file normalize "$origin_dir/src/axis_rx_to_rdma.v"]"\
  "[file normalize "$origin_dir/src/ip_eth_rx_64_rdma.v"]"\
  "[file normalize "$origin_dir/src/rdma_hdr_validator.v"]"\
  "[file normalize "$origin_dir/src/rdma_ip_decap_integrated.v"]"\
@@ -191,7 +191,7 @@ set obj [get_filesets sources_1]
 set files [list \
  [file normalize "${origin_dir}/src/rx_streamer.v"]\
  [file normalize "${origin_dir}/src/rx_header_parser.v"]\
- [file normalize "${origin_dir}/src/axis_rx_to_bram.v"]\
+ [file normalize "${origin_dir}/src/axis_rx_to_rdma.v"]\
  [file normalize "${origin_dir}/src/ip_eth_rx_64_rdma.v"]\
  [file normalize "${origin_dir}/src/rdma_hdr_validator.v"]\
  [file normalize "${origin_dir}/src/rdma_ip_decap_integrated.v"]\
@@ -272,8 +272,8 @@ if { [get_files [list rx_streamer.v]] == "" } {
 if { [get_files [list rx_header_parser.v]] == "" } {
   import_files -quiet -fileset sources_1 ${origin_dir}/src/rx_header_parser.v
 }
-if { [get_files [list axis_rx_to_bram.v]] == "" } {
-  import_files -quiet -fileset sources_1 ${origin_dir}/src/axis_rx_to_bram.v
+if { [get_files [list axis_rx_to_rdma.v]] == "" } {
+  import_files -quiet -fileset sources_1 ${origin_dir}/src/axis_rx_to_rdma.v
 }
 if { [get_files [list ip_eth_rx_64_rdma.v]] == "" } {
   import_files -quiet -fileset sources_1 ${origin_dir}/src/ip_eth_rx_64_rdma.v
