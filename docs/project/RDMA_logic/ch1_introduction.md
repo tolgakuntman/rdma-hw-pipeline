@@ -122,6 +122,3 @@ graph LR
   - Explicit cache management (flush/invalidate operations)
   - Polling-based completion detection
 
----
-
-**Next**: See [Section 2: System Overview](ch2_sytem_overview.md) for high-level architecture and design principles.
