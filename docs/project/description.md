@@ -8,6 +8,8 @@ The system is designed as a fully hardware-driven data path that minimizes CPU i
 
 The final design integrates RDMA queue logic, IP/UDP packetization, and a real Ethernet MAC/PHY subsystem, enabling end-to-end data transfers over a standard Gigabit Ethernet link.
 
+> **Getting Started:** For build instructions and quick start guide, see the [project README](https://github.com/your-repo/team-h/blob/main/README.md) in the repository root.
+
 ---
 
 
