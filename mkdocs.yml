@@ -74,26 +74,18 @@ copyright: |
   &copy; 2024 <a href=""  target="_blank" rel="noopener">TEAM Name</a>
 
 nav:
-  - Project:
-    - Overview:
-      - Subtasks: project/overview.md
-    - Kria SoM:
-      - More info : kria.md
-    - MkDocs : 
-      - Info : index.md
-      - Markdown : extra.md
   - Team H:
     - Description : project/description.md
-  - Part 1: 
-    - Introduction: project/part1_ethernet/intro.md
-    - AXI Ethernet MAC: project/part1_ethernet/axi_ethernet_MAC.md
-    - RGMII & PHY: project/part1_ethernet/rgmii_phy.md
-    - MDIO: project/part1_ethernet/mdio.md
-    - Clocking & Timing: project/part1_ethernet/timing_clocks.md
-    - AXIS RX/TX_to_RDMA Block: project/part1_ethernet/rxtx_axis_to_rdma.md
-    - RX/TX Ethernet Tests: project/part1_ethernet/rxtx_path.md
-    - RDMA RX: project/part1_ethernet/combined_bd.md
-  - Part 2:
+  - RDMA Logic:
+    - RDMA Logic:
+      - Introduction: project/RDMA_logic/ch1_introduction.md
+      - System Overview: project/RDMA_logic/ch2_system_overview.md
+      - Hardware Architecture and RDMA Execution Model: project/RDMA_logic/ch3_hardware_architecture.md
+      - Control Plane Architecture: project/RDMA_logic/ch4_control_plane_architecture.md
+      - Evaluation & Design Tradeoffs: project/RDMA_logic/ch5_evaluation_and_design_tradeoffs.md
+      - Results & Conclusion: project/RDMA_logic/ch6_results_and_conclusion.md
+      - Future Work: project/RDMA_logic/ch7_future_work.md
+  - IP/UDP packetization:
     - IP Encapsulator:
       - Overview : project/ip_encapsulator/overview.md
       - Interfaces : project/ip_encapsulator/interfaces.md
@@ -111,14 +103,14 @@ nav:
       - Ethernet RX Parser : project/ip_encapsulator/ethernet_rx_parser.md
       - Testbench : project/ip_encapsulator/ethernet_rx_parser_tb.md
     - ARP Table Logic : project/ip_encapsulator/arp_table.md
-  - Part 3:
-    - RDMA Logic:
-      - Introduction: project/RDMA_logic/ch1_introduction.md
-      - System Overview: project/RDMA_logic/ch2_system_overview.md
-      - Hardware Architecture: project/RDMA_logic/ch3_hardware_architecture.md
-      - Control Plane Architecture: project/RDMA_logic/ch4_control_plane_architecture.md
-      - RDMA Control Flow: project/RDMA_logic/ch5_rdma_control_flow.md
-      - Evaluation & Design Tradeoffs: project/RDMA_logic/ch6_evaluation_and_design_tradeoffs.md
-      - Results & Conclusion: project/RDMA_logic/ch7_results_and_conclusion.md
-      - Future Work: project/RDMA_logic/ch8_future_work.md
+  - Ethernet MAC & PHY Subsystem: 
+    - Introduction: project/part1_ethernet/intro.md
+    - AXI Ethernet MAC: project/part1_ethernet/axi_ethernet_MAC.md
+    - RGMII & PHY: project/part1_ethernet/rgmii_phy.md
+    - MDIO: project/part1_ethernet/mdio.md
+    - Clocking & Timing: project/part1_ethernet/timing_clocks.md
+    - AXIS RX/TX_to_RDMA Block: project/part1_ethernet/rxtx_axis_to_rdma.md
+    - RX/TX Ethernet Tests: project/part1_ethernet/rxtx_path.md
+    - RDMA RX: project/part1_ethernet/combined_bd.md
+  
 

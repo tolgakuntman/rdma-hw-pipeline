@@ -2,7 +2,7 @@
 
 ## 1. Introduction
 
-**Remote Direct Memory Access (RDMA)** is a communication protocol that enables direct data transfer between the memory spaces of endpoints with minimal CPU involvement. Unlike traditional network stacks, RDMA offloads data movement, segmentation, and completion handling to dedicated hardware, allowing applications to achieve:
+**Remote Direct Memory Access (RDMA)** is a communication paradigm that enables direct data transfer between the memory spaces of networked endpoints with minimal CPU involvement. Unlike traditional network stacks where the processor must actively participate in data movement, RDMA offloads the entire transfer operation to dedicated hardware. This architectural shift provides three fundamental advantages:
 
 - **Low latency** through kernel bypass
 - **High throughput** via zero-copy data transfers
@@ -11,7 +11,7 @@
 
 ---
 
-## State of the Art RDMA Protocols
+## State-of-the-Art RDMA Protocols
 
 Several RDMA-capable transport protocols are deployed in practice today:
 
@@ -25,25 +25,19 @@ Despite differences in transport mechanisms, all RDMA protocols share a **common
 
 ---
 
-### Why Not Use Existing Protocols?
-
-While InfiniBand, RoCE, and iWARP are mature and widely deployed, they introduce significant complexity that is beyond the scope of this educational project. InfiniBand requires specialized hardware and switches not readily available in typical lab environments. RoCE depends on lossless Ethernet configurations (PFC, ECN) that add network management overhead and require compatible switch infrastructure. iWARP, though more accessible over standard Ethernet, still demands a full TCP/IP stack implementation with its associated state management, congestion control, and reliability mechanisms. By implementing a simplified RDMA-style engine with a custom header format, this project isolates the core RDMA concepts—queue-based submission, DMA-driven data movement, and explicit completion semantics—without the burden of protocol compliance, enabling a clearer understanding of the fundamental hardware-software interactions that make RDMA efficient.
-
----
-
 ## RDMA vs. Traditional TCP/IP Communication
 
 ![TCP/IP vs RDMA Architecture](images/tcp-ip-vs-rdma.jpeg)
 
-Compared to conventional TCP/IP-based communication, RDMA offers key architectural advantages:
+Compared to conventional TCP/IP-based communication, RDMA provides key architectural advantages:
 
 | **Aspect** | **TCP/IP** | **RDMA** |
 |------------|-----------|----------|
 | **CPU Involvement** | High (system calls, protocol processing) | Minimal (hardware offload) |
-| **Data Copies** | Multiple (user ↔ kernel buffers) | Zero-copy (direct memory access) |
+| **Data Copies** | Multiple (user-kernel buffer transitions) | Zero-copy (direct memory access) |
 | **Latency** | Higher (context switches, buffering) | Lower (kernel bypass) |
-| **Completion Model** | Implicit (socket ready events) | Explicit (completion queue entries) |
-| **Predictability** | Variable (depends on OS scheduling) | Deterministic (hardware-driven) |
+| **Completion Model** | Implicit (socket readiness events) | Explicit (completion queue entries) |
+| **Predictability** | Variable (OS scheduling dependent) | Deterministic (hardware-driven) |
 
 **Key RDMA Benefits:**
 
@@ -57,9 +51,17 @@ In contrast, TCP prioritizes reliability and generality but incurs higher latenc
 
 ---
 
-### Why Not Use Existing Protocols?
+## Why Not Use Existing Protocols?
 
-While InfiniBand, RoCE, and iWARP are mature and widely deployed, they introduce significant complexity that is beyond the scope of this project. InfiniBand requires specialized hardware and switches not readily available in typical development environments. RoCE depends on lossless Ethernet configurations (PFC, ECN) that add network management overhead and require compatible switch infrastructure. iWARP, though more accessible over standard Ethernet, still demands a full TCP/IP stack implementation with its associated state management, congestion control, and reliability mechanisms. This project isolates the core RDMA concepts—queue-based submission, DMA-driven data movement, and explicit completion semantics—without the burden of protocol compliance, enabling a clearer understanding of the fundamental hardware-software interactions that make RDMA efficient by implementing a simplified RDMA-style engine with a custom header format.
+While InfiniBand, RoCE, and iWARP are mature and widely deployed, each introduces complexity that exceeds the scope of this project:
+
+- **InfiniBand** requires specialized host channel adapters and dedicated switch infrastructure not available in typical development environments.
+
+- **RoCE** depends on lossless Ethernet configurations (PFC, ECN) that require compatible switch infrastructure and add network management complexity.
+
+- **iWARP** demands a full TCP/IP stack implementation with associated state management, congestion control, retransmission logic, and reliability mechanisms.
+
+By implementing a simplified RDMA-style engine with a custom header format, this project isolates the core concepts that make RDMA efficient—queue-based work submission, hardware-driven data movement, and explicit completion signaling—without the burden of protocol compliance. This approach enables a clearer understanding of the fundamental hardware-software interactions underlying RDMA architectures.
 
 ---
 
@@ -67,58 +69,43 @@ While InfiniBand, RoCE, and iWARP are mature and widely deployed, they introduce
 
 The goal of this project is **not** to implement a full standards-compliant RDMA stack or to compete with production-grade NICs. Instead, the objective is to **design and validate a hardware-centric RDMA-style data path on an FPGA-based SoC**, focusing on the core mechanisms that make RDMA efficient:
 
-- **Descriptor-driven execution**: Software submits work via memory-mapped queue structures
-- **DMA-based data movement**: Hardware DataMover IP orchestrates memory transfers
-- **Explicit completion reporting**: Completion queue entries provide status visibility
-- **Clear hardware–software contract**: Pre-defined register interface and memory formats
+- **Queue-based work submission**: Software posts work requests to memory-resident queue structures that hardware consumes autonomously.
+- **Hardware-driven data movement**: Dedicated DMA engines transfer payload data without CPU involvement on the data path.
+- **Explicit completion reporting**: Hardware generates completion entries that software can poll to determine transfer status.
+- **Defined hardware-software contract**: A clear interface between software and hardware through memory-mapped structures and registers.
 
 ---
 
-## Design Philosophy: Loopback Architecture
+## System Architecture: Ethernet-Connected RDMA Engine
 
-To keep the design **tractable and verifiable**, the project adopts a **loopback architecture** in which transmitted packets are routed directly back into a receive pipeline on the same device.
+The final system architecture integrates the RDMA engine with a complete Ethernet I/O path:
 
-### What is Included
+- **Network Interface**: AXI 1G/2.5G Ethernet Subsystem with RGMII PHY
+- **Packetization**: IP/UDP encapsulation via custom IP Encapsulator and Decapsulator modules
+- **Data Path**: AXI-Stream TX/RX glue logic connecting RDMA pipelines to the Ethernet MAC
 
-- Submission Queue (SQ) and Completion Queue (CQ) management
-- Descriptor fetch and parsing
-- RDMA header construction (7-beat custom format)
-- DataMover-controlled payload transfers (MM2S and S2MM)
-- Header insertion and parsing logic
-- Completion generation and pointer management
-- Software polling interface via AXI-Lite registers
-- Ethernet framing, MAC/PHY integration
-- Congestion control and flow control mechanisms
+This architecture enables real network I/O with external endpoints, supporting standard Ethernet frames carrying RDMA payloads over IP/UDP transport.
 
 ---
 
-## System Overview
+## Staged Validation: Loopback as a Bring-Up Mechanism
 
-The resulting system serves as a **proof-of-concept RDMA engine** that demonstrates an end-to-end transaction lifecycle:
+The project employs a **staged approach** where an internal loopback path was used during development to validate RDMA semantics before Ethernet integration.
 
-```mermaid
-graph LR
-    A[Software Submission] --> B[Descriptor Fetch]
-    B --> C[Header Construction]
-    C --> D[Payload Transfer]
-    D --> E[Loopback FIFO]
-    E --> F[Header Parsing]
-    F --> G[Payload Write]
-    G --> H[Completion Generation]
-    H --> I[Software Polling]
-```
+In loopback mode, transmitted packets are routed back into the receive pipeline on the same device via an AXI-Stream FIFO, bypassing the Ethernet MAC and PHY. 
+
+The loopback path remains available as an optional validation mode for regression testing and bring-up diagnostics. It validated the complete RDMA transaction lifecycle—descriptor processing, header serialization, payload DMA, and completion reporting—establishing correctness before Ethernet integration.
 
 ---
 
 ## Target Platform
 
 - **Hardware**: AMD Kria KR260 (Zynq UltraScale+ MPSoC)
-  - Processing System: ARM Cortex-A53 quad-core
-  - Programmable Logic: FPGA fabric for RDMA controller and data path
-  - Memory: DDR4 for queue structures and payload buffers (BRAM or URAM can also be used for both)
-  
-- **Software**: Bare-metal application (no OS)
-  - Direct register access via memory-mapped I/O
-  - Explicit cache management (flush/invalidate operations)
-  - Polling-based completion detection
+    - Processing System: ARM Cortex-A53 quad-core application processor
+    - Programmable Logic: FPGA fabric hosting the RDMA controller and data path
+    - Memory: DDR4 for queue structures and payload buffers
+
+- **Software**: Bare-metal application (no operating system)
+    - Direct hardware access via memory-mapped I/O
+    - Polling-based completion detection
 

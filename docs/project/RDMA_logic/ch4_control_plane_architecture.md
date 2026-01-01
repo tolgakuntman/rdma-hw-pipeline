@@ -1,34 +1,26 @@
 # Section 4: Control Plane Architecture
 
-## 4.1 Hardware / Software Interface Overview
-
-### 4.1.1 Interface Characteristics
-
-The AXI4-Lite interface is strictly a control and synchronization channel. Payload data does not traverse this interface. Instead, data movement occurs through dedicated AXI4-MM and AXI4-Stream channels managed by hardware DMA engines (data movers). The AXI4-Lite slave provides memory-mapped access to 32-bit wide registers, totaling 32 register locations at 4-byte boundaries within a 128-byte address space.
-
-### 4.1.2 Control Plane Responsibilities
-
-All operation progress and completion detection is performed via polling. No interrupt-driven control flow is implemented. The control plane interface enables software to perform the following operations:
-
-- **Queue Configuration**: Initialize Send Queue (SQ) and Completion Queue (CQ) descriptor rings in system DDR memory by programming base addresses and queue depths.
-- **Queue Synchronization**: Coordinate producer-consumer operations through head and tail pointer updates. Software advances tail pointers to post new work; hardware advances head pointers as work completes.
-- **Doorbell Notification**: Signal hardware of new work availability through explicit doorbell writes that generate single-cycle pulse strobes to the control FSM.
-- **Status Polling**: Read hardware-owned registers to monitor queue state, operation progress, and error conditions through polling-based operation.
-- **Global Control**: Issue enable, reset, and mode control commands that govern operational state transitions in the PL logic.
-
-### 4.1.3 Register Access Semantics
-
-Register access patterns follow standard producer-consumer synchronization models. Software-writable registers (control, configuration, and software-owned pointers) support read-modify-write operations with byte-lane write strobing. Hardware-owned registers (status, hardware-owned pointers, and performance counters) are read-only from the software perspective and are directly driven by PL logic without intermediate buffering. Write attempts to hardware-owned registers are silently ignored by the AXI4-Lite slave logic.
-
-Doorbell registers exhibit special write-triggered behavior: any write transaction to a doorbell register address, regardless of data value, generates a single-cycle pulse on the corresponding doorbell output signal. This pulse triggers queue processing logic in the RDMA controller FSM.
+This section defines the AXI-Lite register interface that software uses to configure, control, and monitor the RDMA engine. It serves as a hardware programmer's reference for the control plane API.
 
 ---
 
-## 4.2 AXI-Lite Register Addressing Model
+## 4.1 Interface Overview
 
-The register file spans 128 bytes (0x00 to 0x7C) and comprises 32 word-aligned 32-bit registers. Register addresses are byte-addressed with word alignment. The register space is logically partitioned into control, Send Queue (SQ), and Completion Queue (CQ) groups.
+The control plane uses an AXI4-Lite slave interface providing memory-mapped access to 32-bit registers. This interface handles configuration and synchronization only; payload data moves through separate AXI4-MM and AXI4-Stream channels managed by hardware DMA engines.
 
-### 4.2.1 Register Address Map
+| Property | Value |
+|----------|-------|
+| Interface | AXI4-Lite Slave |
+| Data width | 32 bits |
+| Address space | 128 bytes (0x00 to 0x7C) |
+| Register count | 32 word-aligned registers |
+| Completion model | Polling (no interrupts implemented) |
+
+---
+
+## 4.2 Register Map
+
+### Address Map
 
 | Offset | Name              | Access | Description                                      |
 |--------|-------------------|--------|--------------------------------------------------|
@@ -68,70 +60,104 @@ The register file spans 128 bytes (0x00 to 0x7C) and comprises 32 word-aligned 3
 **Legend:**  
 RW = Read-Write | RO = Read-Only | WO = Write-Only 
 
-### 4.2.2 Register Type Definitions
+---
 
-**Read-Write (RW) Registers**: These registers maintain state programmed by software and may be read back at any time. Write operations update the register value according to the AXI4-Lite write strobe signals (WSTRB). Reset behavior initializes these registers to zero unless otherwise specified.
+## 4.3 Register Access Semantics
 
-**Read-Only (RO) Registers**: Hardware logic directly drives these registers. Read operations return the current value as determined by PL control logic. Write operations to these addresses are legal AXI transactions but have no architectural effect; the write data is discarded and the register value remains unchanged.
+### Read-Write (RW) Registers
 
-**Write-Only (WO) Registers**: These registers exist solely to trigger hardware side effects. The written data value is typically ignored; the write transaction itself serves as the control event. Software reads of write-only registers return zeros or indeterminate values and should be avoided.
+- Maintain programmed state until modified
+- Support byte-lane write strobing via WSTRB
+- Initialize to zero on reset
 
-### 4.2.3 Control Register (0x00)
+### Read-Only (RO) Registers
 
-The CONTROL register provides top-level operational control over the RDMA subsystem. This register contains implementation-internal bitfields for global enable, reset, and mode control. In the current proof-of-concept implementation, software initializes this register during system setup but does not actively manipulate individual control bits during normal operation.Software may initialize this register to a known state during system setup but does not manipulate individual control bits during normal operation.
+- Driven directly by hardware logic
+- Write transactions are accepted but have no effect
+- Return current hardware state on read
 
-### 4.2.4 Queue Base Address Registers
+### Doorbell Behavior
 
-Queue base addresses are 64-bit physical DDR addresses split across two 32-bit registers (LO and HI). These addresses must point to pre-allocated, contiguous descriptor ring buffers in system memory. The controller uses these base addresses in conjunction with queue size parameters to compute descriptor addresses via modulo arithmetic.
-
-For the Send Queue:
-- **SQ_BASE_LO (0x20)**: Bits [31:0] of the 64-bit base address
-- **SQ_BASE_HI (0x24)**: Bits [63:32] of the 64-bit base address
-
-For the Completion Queue:
-- **CQ_BASE_LO (0x40)**: Bits [31:0] of the 64-bit base address
-- **CQ_BASE_HI (0x44)**: Bits [63:32] of the 64-bit base address
-
-Software must ensure base address alignment is compatible with descriptor size and DMA engine burst alignment requirements.
-
-### 4.2.5 Queue Size Registers
-
-**SQ_SIZE (0x28)** and **CQ_SIZE (0x48)** define the number of entries in the respective descriptor rings. The hardware controller uses these values to implement wraparound logic when advancing head or tail pointers. A queue size of N allows indices in the range [0, N-1]. The queue full condition is detected when the producer pointer would equal the consumer pointer after advancing.
-
-### 4.2.6 Queue Pointer Registers
-
-Queue pointers implement producer-consumer synchronization:
-
-- **SQ_HEAD (0x2C, RO)**: Hardware-owned. Incremented by the RDMA controller after fetching and initiating a Send Queue entry. Software polls this register to determine queue occupancy and drain status.
-
-- **SQ_TAIL (0x30, RW)**: Software-owned. Incremented by software after posting a new descriptor to the Send Queue. Writing this register implicitly asserts the SQ_DOORBELL_PULSE signal for one clock cycle.
-
-- **CQ_HEAD (0x4C, RW)**: Software-owned. Incremented by software after consuming a completion entry. This pointer informs hardware when CQ space is available for reuse.
-
-- **CQ_TAIL (0x50, RO)**: Hardware-owned. Incremented by the RDMA controller after writing a completion entry to memory. Software polls this register to detect new completions.
-
-Pointer values are indices (not byte addresses) and wrap to zero when incremented past SQ_SIZE or CQ_SIZE.
-
-
-### 4.2.7 Debug and Reserved Registers
-
-Several registers provide diagnostic visibility:
-
-- **RDMA_STATE (0x5C)** and **CMD_STATE (0x60)** expose internal FSM state encodings, enabling software to diagnose stuck or unexpected controller behavior during development and debug.
-
-- **RDMA_LOCAL_HI**, **RDMA_REMOTE_LO/HI**, and **RDMA_BTT_[0-3]** registers (0x64–0x7C) reflect latched RDMA descriptor fields captured by the controller. These registers support introspection of the currently processed operation.
-
-Reserved register addresses and bit fields are implementation-specific placeholders. Software should write zero to reserved bits and ignore values read from reserved fields to ensure forward compatibility.
-
-### 4.2.8 Access Guidelines
-
-Software should observe the following access patterns:
-
-1. **Initialization**: Program queue base addresses and sizes before setting CONTROL to an operational state.
-2. **Work Submission**: Write descriptor(s) to DDR, perform memory barrier if necessary, then advance SQ_TAIL.
-3. **Work Completion**: Poll CQ_TAIL for changes. When CQ_TAIL advances, read completion descriptor(s) from DDR, process, then advance CQ_HEAD.
-4. **Reset Sequence**: Modify CONTROL register to assert reset, wait fixed interval (e.g., 100 µs), clear reset, then reprogram pointers to zero.
-
-Access width must be 32-bit aligned. Unaligned or narrow (8/16-bit) accesses may result in undefined behavior depending on AXI4-Lite interconnect and slave configuration. Burst transactions are not supported; all accesses must be single-word transactions.
+Writing to **SQ_TAIL (0x30)** generates a single-cycle pulse that triggers the RDMA controller to check for new work. The written value updates the tail pointer; the write transaction itself serves as the doorbell notification.
 
 ---
+
+## 4.4 Register Descriptions
+
+### CONTROL (0x00)
+
+Global operational control register. Software initializes this register during system setup to enable the RDMA subsystem.
+
+### Queue Base Address Registers
+
+64-bit physical DDR addresses for queue descriptor rings, split across LO/HI register pairs:
+
+| Queue | Low Register | High Register |
+|-------|--------------|---------------|
+| SQ | SQ_BASE_LO (0x20) | SQ_BASE_HI (0x24) |
+| CQ | CQ_BASE_LO (0x40) | CQ_BASE_HI (0x44) |
+
+Base addresses must point to pre-allocated, contiguous buffers in DDR. Alignment must be compatible with descriptor size (64 bytes for SQ, 32 bytes for CQ).
+
+### Queue Size Registers
+
+| Register | Offset | Description |
+|----------|--------|-------------|
+| SQ_SIZE | 0x28 | Number of SQ entries (determines index range [0, N-1]) |
+| CQ_SIZE | 0x48 | Number of CQ entries (determines index range [0, N-1]) |
+
+### Queue Pointer Registers
+
+Pointer values are entry indices (not byte addresses). See [Section 3.2](ch3_hardware_architecture.md#32-queue-architecture-and-ownership) for ownership semantics.
+
+| Register | Offset | Owner | Description |
+|----------|--------|-------|-------------|
+| SQ_HEAD | 0x2C | Hardware | Next SQ entry to fetch |
+| SQ_TAIL | 0x30 | Software | Next SQ slot for new work (doorbell on write) |
+| CQ_HEAD | 0x4C | Software | Next CQ entry to consume |
+| CQ_TAIL | 0x50 | Hardware | Next CQ slot for completion |
+
+### Debug Registers (0x5C–0x7C)
+
+These registers expose internal state for diagnostic purposes:
+
+| Register | Description |
+|----------|-------------|
+| RDMA_STATE | Current RDMA controller FSM state encoding |
+| CMD_STATE | Current command controller FSM state encoding |
+| RDMA_LOCAL_HI | Upper 32 bits of latched local address |
+| RDMA_REMOTE_LO/HI | Latched remote address (64-bit) |
+| RDMA_BTT_0–3 | Latched byte transfer count (128-bit) |
+
+---
+
+## 4.5 Programming Guidelines
+
+### Initialization Sequence
+
+1. Program SQ_BASE_LO, SQ_BASE_HI, SQ_SIZE
+2. Program CQ_BASE_LO, CQ_BASE_HI, CQ_SIZE
+3. Ensure SQ_TAIL = 0 and CQ_HEAD = 0
+4. Set CONTROL register to enable operation
+
+### Work Submission
+
+1. Write descriptor to DDR at `SQ_BASE + (SQ_TAIL × 64)`
+2. Flush cache for descriptor region
+3. Write incremented tail value to SQ_TAIL (triggers doorbell)
+
+### Completion Polling
+
+1. Poll CQ_TAIL until `CQ_TAIL ≠ CQ_HEAD`
+2. Invalidate cache for CQ entry region
+3. Read completion from `CQ_BASE + (CQ_HEAD × 32)`
+4. Write incremented head value to CQ_HEAD
+
+### Access Constraints
+
+| Constraint | Requirement |
+|------------|-------------|
+| Access width | 32-bit aligned only |
+| Burst support | Single-word transactions only |
+| Narrow access | 8/16-bit accesses may cause undefined behavior |
+| Reserved fields | Write zero, ignore on read |

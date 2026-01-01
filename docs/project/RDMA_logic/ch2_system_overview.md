@@ -4,125 +4,155 @@ This section presents a high-level overview of the RDMA engine system, its major
 
 ---
 
-## 2.1 Design Objectives
+## 2.1 Design Principles
 
-The system is designed with the following core principles:
+The system architecture is guided by the following principles:
 
-### Primary Objectives
-
-**Hardware-driven data movement**  
-All payload transfers are performed by data movers in the PL, without CPU involvement on the data path. Software submits work but does not touch payload bytes.
-
-**Explicit queue-based control model**  
-Software interacts with hardware exclusively through submission and completion queues in DDR memory, following industry-standard RDMA semantics.
-
-**Deterministic execution flow**  
-One work request is processed at a time by a single controller FSM, ensuring precise ordering and easy verification. No concurrent operations or speculative execution.
-
-**Minimal protocol scope**  
-Only the essential RDMA mechanisms are implemented. Transport-layer features (retransmission, congestion control) are intentionally excluded for clarity.
-
-**Verifiability and traceability**  
-Every observable software-visible event (e.g., SQ_HEAD or CQ_TAIL update) corresponds to a clearly defined hardware state transition, enabling precise debugging.
+| Principle | Description |
+|-----------|-------------|
+| **Hardware-driven data movement** | All payload transfers are performed by DMA engines in the programmable logic (PL), without CPU involvement on the data path. |
+| **Queue-based control model** | Software interacts with hardware through submission and completion queues residing in DDR memory. |
+| **Deterministic execution** | Operations are processed sequentially, ensuring precise ordering and straightforward verification. |
+| **Minimal protocol scope** | Only essential RDMA mechanisms are implemented; transport-layer features (retransmission, congestion control) are excluded. |
 
 ---
 
-## 2.2 Top-Level System Composition
+## 2.2 System Block Diagram
 
-The system comprises six functional domains that interact through well-defined interfaces:
+The system comprises six functional domains spanning the Processing System (PS) and Programmable Logic (PL):
 
-### 1. Processing System (PS) — ARM Cortex-A53
-
-**Responsibilities:**
-- Run bare-metal software application
-- Prepare 64-byte work descriptors in DDR
-- Manage queue pointers via memory-mapped AXI-Lite registers
-- Poll for completions and verify results
-- Perform explicit cache flush/invalidate operations
-
-**Interface:** AXI-Lite register access, cache-coherent DDR access
-
----
-
-### 2. RDMA Controller (PL) — Control Plane FSM
-
-The global coordinator that manages submission and completion queues, orchestrates data movement, and owns all queue pointers (SQ_HEAD, CQ_TAIL). See [Section 3](ch3_hardware_architecture.md) for detailed implementation.
-
----
-
-### 3. Transmit Data Path (PL) — Header + Payload Streaming
-
-Converts SQ descriptors into RDMA packets by constructing headers, reading payloads from DDR, and streaming the combined data. Handles fragmentation for transfers exceeding 4 KB boundaries. See [Section 3.3](ch3_hardware_architecture.md#33-transmit-path-tx) for detailed implementation.
-
----
-
-### 4. Loopback FIFO (PL) — Elastic Buffering
-
-A Xilinx AXI-Stream FIFO that routes transmitted packets directly back to the receive path. This enables self-contained validation without external networking, preserving packet boundaries and handling backpressure between TX and RX paths.
-
----
-
-### 5. Receive Data Path (PL) — Header Parsing + Payload Write
-
-Parses incoming RDMA packets, extracts metadata from headers, and writes payloads to DDR at computed destination addresses. Operates independently from the RDMA controller. See [Section 3.4](ch3_hardware_architecture.md#34-receive-path-rx) for detailed implementation.
-
----
-
-### 6. Shared DDR Memory — Queue Structures and Payload Buffers
-
-Hosts submission queue (SQ) descriptors, completion queue (CQ) entries, and payload buffers. The PS accesses memory through a cache-coherent path (requiring explicit flush/invalidate), while the PL uses non-coherent DMA via [DataMover](https://www.xilinx.com/support/documents/ip_documentation/axi_datamover/v5_1/pg022_axi_datamover.pdf). See [Section 3.2](ch3_hardware_architecture.md#32-queue-management-blocks-sq-and-cq) for queue structure details.
-
----
-
-## 2.3 Control Plane vs. Data Plane Separation
-
-A key architectural decision is the **strict separation** between control plane and data plane responsibilities:
-
-- **Control Plane** (RDMA controller): Manages descriptor lifecycle, queue pointers, operation sequencing, and completion generation
-- **Data Plane** (TX/RX streamers, [DataMover](https://www.xilinx.com/support/documents/ip_documentation/axi_datamover/v5_1/pg022_axi_datamover.pdf)): Moves bytes between DDR and AXI-Stream, handles headers and backpressure
-
-This separation ensures control overhead does not block data throughput. See [Section 3](ch3_hardware_architecture.md) for detailed ownership boundaries.
-
----
-
-## 2.4 Descriptor-Driven Execution Model
-
-All operations are initiated by **software-posted descriptors** residing in DDR. The hardware **never speculates** or generates work autonomously.
-
-### Execution Pipeline
-
-Once the SQ_TAIL pointer is advanced by software, the descriptor becomes visible to hardware and progresses through a **strictly ordered execution pipeline**:
-
-```
-1. Fetch   → Read 64-byte SQ entry from DDR
-2. Parse   → Extract fields into internal registers
-3. Execute → TX streamer reads payload, constructs packet, streams to FIFO
-4. Complete → Write 32-byte CQ entry to DDR, update SQ_HEAD and CQ_TAIL
+```mermaid
+graph TB
+    subgraph PS["Processing System (PS)<br/>ARM Cortex-A53"]
+        APP["Bare-Metal Application<br/>• Descriptor preparation<br/>• Queue pointer management<br/>• Completion polling"]
+    end
+    
+    subgraph PL["Programmable Logic (PL)"]
+        DDR["Shared DDR Memory<br/>(SQ Descriptors, CQ Entries, Payload Buffers)"]
+        
+        CTRL["RDMA Controller<br/>(Control Plane)"]
+        
+        TX["Transmit Data Path<br/>(Header Build + Stream)"]
+        
+        RX["Receive Data Path<br/>(Header Parse + Write)"]
+        
+        LOOP["Loopback FIFO<br/>(Elastic Buffering)"]
+    end
+    
+    APP -->|AXI-Lite| CTRL
+    APP -->|AXI Memory| DDR
+    
+    CTRL -->|Read/Write| DDR
+    CTRL -->|tx_cmd| TX
+    
+    TX --> LOOP
+    LOOP --> RX
+    
+    RX -->|Write| DDR
+    
+    style PS fill:#e1f5ff
+    style PL fill:#fff4e1
 ```
 
-This model mirrors the execution semantics of production RDMA devices while remaining **fully transparent** to software and debug tools.
+---
+
+## 2.3 Functional Block Descriptions
+
+### Processing System (PS) — ARM Cortex-A53
+
+The PS hosts the bare-metal software application responsible for:
+
+- Preparing work descriptors in DDR memory
+- Configuring hardware through memory-mapped registers
+- Polling for operation completions
+
+The PS communicates with the PL through two paths: an AXI-Lite interface for register access and AXI memory transactions for DDR access.
 
 ---
 
-## 2.5 Single-Operation Execution Policy
+### RDMA Controller — Control Plane
 
-The current design processes **one work request at a time**. The RDMA controller does not fetch a new SQ entry until:
+The central coordinator residing in the PL that orchestrates descriptor processing. The controller fetches work requests from the submission queue, dispatches them to the transmit path, and generates completion entries upon transaction completion.
 
-1. The current payload transmission has completed (`mm2s_rd_xfer_cmplt` detected)
-2. The corresponding CQ entry has been written to DDR (`s2mm_wr_xfer_cmplt` detected)
-3. SQ_HEAD and CQ_TAIL pointers have been updated atomically
+For queue ownership semantics and execution flow details, see [Chapter 3](ch3_hardware_architecture.md).
 
-### Trade-offs
+---
 
-**Advantages:**
-- Eliminates reordering and race conditions
-- Simplifies completion correlation (1:1 SQ entry → CQ entry)
-- Makes hardware/software interaction easy to verify
-- Deterministic behavior suitable for functional validation
+### Transmit Data Path — Header Construction and Payload Streaming
 
-**Limitations:**
-- Reduced throughput (no pipelining of multiple operations)
-- Single-threaded execution (FSM idle between operations)
+The transmit path converts work descriptors into RDMA packets by:
 
-This conservative policy is a **deliberate trade-off** aligned with the project's architectural validation goals. Software may post multiple descriptors to the SQ, but hardware processes them sequentially.
+- Constructing protocol headers from descriptor fields
+- Reading payload data from DDR via DMA
+- Streaming the combined header and payload downstream
+
+Architectural details are provided in [Section 3.3](ch3_hardware_architecture.md#33-transmit-path-tx).
+
+---
+
+### Ethernet Interface — Primary External I/O
+
+The primary data path uses the AXI 1G/2.5G Ethernet Subsystem with RGMII PHY for external network connectivity:
+
+- **IP Encapsulator**: Wraps RDMA packets in UDP/IP/Ethernet headers for transmission
+- **IP Decapsulator**: Strips transport headers from received packets, extracting RDMA payload
+- **AXI Ethernet MAC**: Handles Ethernet frame generation, CRC, and PHY interface timing
+- **RGMII PHY**: Physical layer interface to external Ethernet network
+
+This path enables communication with remote endpoints over standard Ethernet infrastructure.
+
+---
+
+### Loopback FIFO — Validation Mode
+
+An AXI-Stream FIFO that routes transmitted packets directly back to the receive path, bypassing the Ethernet MAC and PHY. This component is used during bring-up and regression testing:
+
+- Preserving packet boundaries (TLAST semantics)
+- Providing elastic buffering between TX and RX clock domains
+- Handling backpressure when the receive path is busy
+
+---
+
+### Receive Data Path — Header Parsing and Payload Write
+
+The receive path processes incoming packets by:
+
+- Parsing protocol headers to extract transfer metadata
+- Computing destination addresses from header fields
+- Writing payload data to DDR via DMA
+
+The receive path operates independently from the RDMA controller. See [Section 3.4](ch3_hardware_architecture.md#34-receive-path-rx) for implementation details.
+
+---
+
+### Shared DDR Memory — Queue Structures and Payload Buffers
+
+DDR memory hosts all persistent data structures:
+
+- **Submission Queue (SQ)**: Work descriptors posted by software
+- **Completion Queue (CQ)**: Status entries generated by hardware
+- **Payload Buffers**: Source and destination regions for data transfers
+
+The PS accesses DDR through a cache-coherent path, while PL components use non-coherent DMA via the [AXI DataMover](https://www.xilinx.com/support/documents/ip_documentation/axi_datamover/v5_1/pg022_axi_datamover.pdf). Queue structure formats are defined in [Section 3.2](ch3_hardware_architecture.md#32-queue-management-blocks-sq-and-cq).
+
+---
+
+## 2.4 Control Plane vs. Data Plane Separation
+
+A key architectural decision is the **strict separation** between control and data responsibilities:
+
+| Plane | Components | Responsibilities |
+|-------|------------|------------------|
+| **Control Plane** | RDMA Controller | Descriptor lifecycle, queue pointer management, operation sequencing, completion generation |
+| **Data Plane** | TX/RX Paths, DataMover | Byte movement between DDR and AXI-Stream, header construction/parsing, backpressure handling |
+
+This separation ensures that control overhead does not block data throughput and allows independent optimization of each path.
+
+---
+
+## 2.5 Descriptor-Driven Execution
+
+All operations are initiated by **software-posted descriptors** residing in DDR. The hardware never speculates or generates work autonomously—it processes only what software explicitly submits.
+
+This model mirrors the execution semantics of production RDMA devices: software posts work, hardware executes it, and hardware reports completion. The specific queue ownership rules, pointer semantics, and execution flow are detailed in [Chapter 3](ch3_hardware_architecture.md).
 

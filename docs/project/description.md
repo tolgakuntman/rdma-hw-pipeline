@@ -1,19 +1,57 @@
-# A Team Description
+# RDMA Engine on Kria KR260
 
-This page is here to show you can create subfolders...  
-You are free to choose how you structure these gitlab pages. 
-If you want a newline character at the end of a line, use <double spaces\> (check previous line in this markdown source file).
+## Overview
 
-## Info about your team
+This project implements a custom RDMA Engine on the Xilinx Kria KR260 FPGA platform, targeting high-throughput, low-latency data movement between host memory and a physical Ethernet network interface.
 
-Here we describe our team-members
+The system is designed as a fully hardware-driven data path that minimizes CPU involvement by offloading packet handling, queue management, and bulk memory transfers into FPGA logic. It follows the architectural principles of RDMA systems while remaining lightweight, modular, and suitable for experimental validation on a single FPGA platform.
 
-##### Block title
+The final design integrates RDMA queue logic, IP/UDP packetization, and a real Ethernet MAC/PHY subsystem, enabling end-to-end data transfers over a standard Gigabit Ethernet link.
 
-!!! info
+---
 
-    A nice picture?
 
-## Outline
+### Part 1 — RDMA Core & Queue Engine
 
-Some more in depth explanation, up to you to make something beautiful!
+Implements submit and completion queues, descriptor fetching, execution control, and coordination of DDR memory transfers via the AXI DataMover. This part defines the execution semantics of the system and enforces ordering, ownership, and completion guarantees.
+
+### Part 2 — Network Packetization Layer (IP/UDP)
+
+Responsible for constructing and parsing Ethernet-compatible IP/UDP packets. This layer bridges the RDMA core and the Ethernet subsystem by converting streaming payload data into valid network frames and extracting RDMA headers and payloads from received packets.
+
+### Part 3 — Ethernet MAC & PHY Subsystem
+
+Implements the physical network interface using the AXI 1G/2.5G Ethernet Subsystem, RGMII signaling, and an external Gigabit PHY. This part handles MAC configuration, PHY management via MDIO, AXI-Stream TX/RX behavior, and reliable delivery of frames to and from the FPGA fabric.
+
+Each part is developed and validated independently before being integrated into the final end-to-end system.
+
+---
+
+## Team Responsibilities
+
+The CPU configures the system and submits work descriptors, but all data movement and protocol handling occur in hardware.
+
+![Project Flow](RDMA_logic/images/project_flow.png)
+*Figure: End-to-end system data flow from RDMA queue submission through IP/UDP packetization to Ethernet transmission*
+
+---
+
+## Project Decomposition
+The project is divided into three main parts, each responsible for a distinct layer of the system:
+Part 1 — RDMA Core & Queue Engine
+Implements submit and completion queues, descriptor fetching, execution control, and coordination of DDR memory transfers via the AXI DataMover. This part defines the execution semantics of the system and enforces ordering, ownership, and completion guarantees.
+Part 2 — Network Packetization Layer (IP/UDP)
+Responsible for constructing and parsing Ethernet-compatible IP/UDP packets. This layer bridges the RDMA core and the Ethernet subsystem by converting streaming payload data into valid network frames and extracting RDMA headers and payloads from received packets.
+Part 3 — Ethernet MAC & PHY Subsystem
+Implements the physical network interface using the AXI 1G/2.5G Ethernet Subsystem, RGMII signaling, and an external Gigabit PHY. This part handles MAC configuration, PHY management via MDIO, AXI-Stream TX/RX behavior, and reliable delivery of frames to and from the FPGA fabric.
+Each part is developed and validated independently before being integrated into the final end-to-end system.
+
+---
+
+## Our Team:
+| Member            | Project Part | Responsibility                                             |
+| ----------------- | ------------ | ---------------------------------------------------------- |
+| Emir Yalcin | Part 3       | Ethernet MAC/PHY subsystem and low-level TX/RX integration |
+| Tubi Soyer      | Part 2       | IP/UDP packetization and decapsulation logic               |
+| Tolga Kuntman    | Part 1       | RDMA Core & Queue Engine            |
+
