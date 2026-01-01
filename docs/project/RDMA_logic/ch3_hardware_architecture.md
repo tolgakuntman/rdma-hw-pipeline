@@ -12,32 +12,20 @@ The programmable logic is organized around a **single control authority** (the R
 
 ```mermaid
 graph TB
-    subgraph PL["Programmable Logic (PL)"]
-        CTRL["RDMA Controller<br/>• Queue pointer management (SQ_HEAD, CQ_TAIL)<br/>• Descriptor fetch and parsing<br/>• Completion entry generation<br/>• Operation sequencing"]
-        
-        DM1["DataMover #1 (Control)<br/>• MM2S: SQ descriptor fetch<br/>• S2MM: CQ entry write"]
-        
-        TX["TX Streamer<br/>• Fragmentation logic<br/>• MM2S command generation<br/>• Header inserter control"]
-        
-        HDR_INS["TX Header Inserter<br/>• 7-beat header serialize<br/>• Payload pass-through"]
-        
-        DM2["DataMover #2 (Data)<br/>• MM2S: TX payload read<br/>• S2MM: RX payload write"]
-        
-        ENCAP["IP Encapsulator<br/>• UDP/IP/Eth headers<br/>• Endpoint lookup"]
-        
-        MAC_TX["AXI Ethernet MAC (TX)<br/>• Frame generation<br/>• RGMII PHY interface"]
-        
-        NET["External Network<br/>or Loopback"]
-        
-        MAC_RX["AXI Ethernet MAC (RX)<br/>• Frame reception"]
-        
-        DECAP["IP Decapsulator<br/>• Header strip<br/>• RDMA payload extract"]
-        
-        HDR_PARSE["RX Header Parser<br/>• 7-beat header extract<br/>• Payload pass-through"]
-        
-        RX["RX Streamer<br/>• S2MM command generation<br/>• Opcode validation"]
-        
-        LOOP["Loopback FIFO<br/>(Validation Mode)"]
+    subgraph PL[Programmable Logic]
+        CTRL[RDMA Controller]
+        DM1[DataMover #1 Control]
+        TX[TX Streamer]
+        HDR_INS[TX Header Inserter]
+        DM2[DataMover #2 Data]
+        ENCAP[IP Encapsulator]
+        MAC_TX[AXI Ethernet MAC TX]
+        NET[External Network or Loopback]
+        MAC_RX[AXI Ethernet MAC RX]
+        DECAP[IP Decapsulator]
+        HDR_PARSE[RX Header Parser]
+        RX[RX Streamer]
+        LOOP[Loopback FIFO]
     end
     
     CTRL -->|tx_cmd| TX

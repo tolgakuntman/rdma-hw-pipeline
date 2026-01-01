@@ -23,20 +23,16 @@ The system comprises six functional domains spanning the Processing System (PS) 
 
 ```mermaid
 graph TB
-    subgraph PS["Processing System (PS)<br/>ARM Cortex-A53"]
-        APP["Bare-Metal Application<br/>• Descriptor preparation<br/>• Queue pointer management<br/>• Completion polling"]
+    subgraph PS[Processing System - ARM Cortex-A53]
+        APP[Bare-Metal Application]
     end
     
-    subgraph PL["Programmable Logic (PL)"]
-        DDR["Shared DDR Memory<br/>(SQ Descriptors, CQ Entries, Payload Buffers)"]
-        
-        CTRL["RDMA Controller<br/>(Control Plane)"]
-        
-        TX["Transmit Data Path<br/>(Header Build + Stream)"]
-        
-        RX["Receive Data Path<br/>(Header Parse + Write)"]
-        
-        LOOP["Loopback FIFO<br/>(Elastic Buffering)"]
+    subgraph PL[Programmable Logic]
+        DDR[Shared DDR Memory]
+        CTRL[RDMA Controller]
+        TX[Transmit Data Path]
+        RX[Receive Data Path]
+        LOOP[Loopback FIFO]
     end
     
     APP -->|AXI-Lite| CTRL

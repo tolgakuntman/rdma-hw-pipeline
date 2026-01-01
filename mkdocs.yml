@@ -50,6 +50,7 @@ extra:
 
 extra_javascript:
   - https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.4/MathJax.js?config=TeX-AMS-MML_HTMLorMML
+  - https://unpkg.com/mermaid@10/dist/mermaid.min.js
 
 markdown_extensions:
   - mdx_math
@@ -63,7 +64,11 @@ markdown_extensions:
   - footnotes
   - admonition
   - pymdownx.details
-  - pymdownx.superfences
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
   - pymdownx.mark
   - def_list
   - pymdownx.tasklist:
@@ -71,7 +76,7 @@ markdown_extensions:
   - attr_list
 
 copyright: |
-  &copy; 2024 <a href=""  target="_blank" rel="noopener">TEAM Name</a>
+  &copy; 2024 <a href=""  target="_blank" rel="noopener">TEAM H</a>
 
 nav:
   - Team H:
