@@ -1,0 +1,10 @@
+
+
+OPTION psf_version = 2.1;
+
+BEGIN DRIVER rdma_registers_slave_ip
+	OPTION supported_peripherals = (rdma_registers_slave_ip);
+	OPTION copyfiles = all;
+	OPTION VERSION = 1.0;
+	OPTION NAME = rdma_registers_slave_ip;
+END DRIVER

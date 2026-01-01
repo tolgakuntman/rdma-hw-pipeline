@@ -1,0 +1,27 @@
+# Ignore build output directory
+/build
+hello_world/
+bram_test/
+.theia/
+.rigel_lopper/
+.wsdata/
+logs/
+memory_test/
+test/
+
+# Ignore object files and dependent files
+.o
+.d
+
+#Ignore logs folder and log files
+/logs
+.log
+
+#Ignore lock files
+.lock
+
+.bin
+.pdi
+.peers.ini
+.repo.yaml
+.vitisWorkspace.json

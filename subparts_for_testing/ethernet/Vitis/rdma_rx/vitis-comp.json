@@ -1,0 +1,15 @@
+{
+  "name": "rdma_rx",
+  "type": "HOST",
+  "platform": "C:\\Users\\emiry\\Desktop\\KuLeuven\\rdma_v1\\rdma_v1\\export\\rdma_v1\\rdma_v1.xpfm",
+  "domain": "standalone_psu_cortexa53_0",
+  "cpuInstance": "psu_cortexa53_0",
+  "cpuType": "cortex-a53",
+  "os": "standalone",
+  "configuration": {
+    "componentType": "HOST",
+    "hostToolchainConfigurations": []
+  },
+  "domainRealName": "standalone_psu_cortexa53_0",
+  "applicationFlow": "EMBEDDED"
+}
