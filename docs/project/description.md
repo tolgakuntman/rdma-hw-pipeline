@@ -36,22 +36,10 @@ The CPU configures the system and submits work descriptors, but all data movemen
 
 ---
 
-## Project Decomposition
-The project is divided into three main parts, each responsible for a distinct layer of the system:
-Part 1 — RDMA Core & Queue Engine
-Implements submit and completion queues, descriptor fetching, execution control, and coordination of DDR memory transfers via the AXI DataMover. This part defines the execution semantics of the system and enforces ordering, ownership, and completion guarantees.
-Part 2 — Network Packetization Layer (IP/UDP)
-Responsible for constructing and parsing Ethernet-compatible IP/UDP packets. This layer bridges the RDMA core and the Ethernet subsystem by converting streaming payload data into valid network frames and extracting RDMA headers and payloads from received packets.
-Part 3 — Ethernet MAC & PHY Subsystem
-Implements the physical network interface using the AXI 1G/2.5G Ethernet Subsystem, RGMII signaling, and an external Gigabit PHY. This part handles MAC configuration, PHY management via MDIO, AXI-Stream TX/RX behavior, and reliable delivery of frames to and from the FPGA fabric.
-Each part is developed and validated independently before being integrated into the final end-to-end system.
-
----
-
 ## Our Team:
 | Member            | Project Part | Responsibility                                             |
 | ----------------- | ------------ | ---------------------------------------------------------- |
-| Emir Yalcin | Part 3       | Ethernet MAC/PHY subsystem and low-level TX/RX integration |
-| Tubi Soyer      | Part 2       | IP/UDP packetization and decapsulation logic               |
 | Tolga Kuntman    | Part 1       | RDMA Core & Queue Engine            |
+| Tubi Soyer      | Part 2       | IP/UDP packetization and decapsulation logic               |
+| Emir Yalcin | Part 3       | Ethernet MAC/PHY subsystem and low-level TX/RX integration |
 
