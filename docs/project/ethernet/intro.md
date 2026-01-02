@@ -163,7 +163,7 @@ Part-1 is documented across several detailed sections:
 - **RGMII & PHY** – PHY electrical & logical behavior RGMMI explanations
 - **MDIO** – MDIO logic and how we use it to reach PHY registers  
 - **Clocking & Timing** – Clocking architecture  
-- **- AXIS RX/TX_to_RDMA Block:** – Custom RX pass through module controlling txd, txc, rxd, rxs pins of ethernet ip block
+- **AXIS RX/TX_to_RDMA Block** – Custom RX pass through module controlling txd, txc, rxd, rxs pins of ethernet ip block
 - **RX/TX Ethernet Tests** – TX RX tests separate from RDMA logic  
 - **RDMA RX** – Final RDMA integration  
 

@@ -97,7 +97,7 @@ Thus, **all PHY configuration is indirect**:
 
 ### 3.1 MDIO-Related Constants (PHY address, registers, and bits)
 
-| Interface | PHY Type | MDIO Address | Board Location | Notes |
+| Interface | PHY Type | PHY Address | Board Location | Notes |
 |----------|----------|--------------|----------------|-------|
 | **PS GEM0** | **SGMII** | **0x04** | Front upper right | Uses SGMII mode |
 | **PS GEM1** | **RGMII** | **0x08** | Front lower right | RGMII interface |
