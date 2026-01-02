@@ -110,13 +110,13 @@ nav:
       - Testbench : project/ip_encapsulator/ethernet_rx_parser_tb.md
     - ARP Table Logic : project/ip_encapsulator/arp_table.md
   - Ethernet MAC & PHY Subsystem: 
-    - Introduction: project/part1_ethernet/intro.md
-    - AXI Ethernet MAC: project/part1_ethernet/axi_ethernet_MAC.md
-    - RGMII & PHY: project/part1_ethernet/rgmii_phy.md
-    - MDIO: project/part1_ethernet/mdio.md
-    - Clocking & Timing: project/part1_ethernet/timing_clocks.md
-    - AXIS RX/TX_to_RDMA Block: project/part1_ethernet/rxtx_axis_to_rdma.md
-    - RX/TX Ethernet Tests: project/part1_ethernet/rxtx_path.md
-    - RDMA RX: project/part1_ethernet/combined_bd.md
+    - Introduction: project/ethernet/intro.md
+    - AXI Ethernet MAC: project/ethernet/axi_ethernet_MAC.md
+    - RGMII & PHY: project/ethernet/rgmii_phy.md
+    - MDIO: project/ethernet/mdio.md
+    - Clocking & Timing: project/ethernet/timing_clocks.md
+    - AXIS RX/TX_to_RDMA Block: project/ethernet/rxtx_axis_to_rdma.md
+    - RX/TX Ethernet Tests: project/ethernet/rxtx_path.md
+    - RDMA RX: project/ethernet/combined_bd.md
   
 
