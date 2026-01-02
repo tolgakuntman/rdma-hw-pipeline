@@ -91,7 +91,7 @@ nav:
       - Evaluation & Design Tradeoffs: project/RDMA_logic/ch5_evaluation_and_design_tradeoffs.md
       - Results & Conclusion: project/RDMA_logic/ch6_results_and_conclusion.md
       - Future Work: project/RDMA_logic/ch7_future_work.md
-  - IP/UDP packetization:
+  - IP/UDP Packetization:
     - IP Encapsulator:
       - Overview : project/ip_encapsulator/overview.md
       - Interfaces : project/ip_encapsulator/interfaces.md
