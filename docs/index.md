@@ -1,55 +1,47 @@
-# Welcome
+# RDMA Engine on Kria KR260
 
-This is a short demo of mkdocs with a few pages for your Gitlab Pages.
+## Overview
 
-## What is MkDocs
+This project implements a custom RDMA Engine on the Xilinx Kria KR260 FPGA platform, targeting high-throughput, low-latency data movement between host memory and a physical Ethernet network interface.
 
-"MkDocs is a **fast, simple** and **downright gorgeous** static site generator that's geared towards building project documentation. Documentation source files are written in Markdown, and configured with a single YAML configuration file. Start by reading the introductory tutorial, then check the User Guide for more information."
+The system is designed as a fully hardware-driven data path that minimizes CPU involvement by offloading packet handling, queue management, and bulk memory transfers into FPGA logic. It follows the architectural principles of RDMA systems while remaining lightweight, modular, and suitable for experimental validation on a single FPGA platform.
 
-You can read more about MkDocs on their [website](https://www.mkdocs.org/)
+The final design integrates RDMA queue logic, IP/UDP packetization, and a real Ethernet MAC/PHY subsystem, enabling end-to-end data transfers over a standard Gigabit Ethernet link.
 
-### Installing MkDocs
+> **Getting Started:** For build instructions and quick start guide, see the [project README](https://github.com/tolgakuntman/rdma-hw-pipeline/blob/main/README.md) in the repository root.
 
-[Here](https://www.mkdocs.org/getting-started/) you find how to install MkDocs.
+---
 
-``` python
-pip install mkdocs
-```
 
-If you want to run a local webserver with your mkdocs, open a command console and cd into the folder of this git repository and run:
+### Part 1 — RDMA Core & Queue Engine
 
-``` bash
-pip install -r requirements.txt 
-mkdocs serve
-```
+Implements submit and completion queues, descriptor fetching, execution control, and coordination of DDR memory transfers via the AXI DataMover. This part defines the execution semantics of the system and enforces ordering, ownership, and completion guarantees.
 
-Next you can open a browser and go to http://127.0.0.1:8000
+### Part 2 — Network Packetization Layer (IP/UDP)
 
-### Adding pages
+Responsible for constructing and parsing Ethernet-compatible IP/UDP packets. This layer bridges the RDMA core and the Ethernet subsystem by converting streaming payload data into valid network frames and extracting RDMA headers and payloads from received packets.
 
-The structure of the site is described in a file called *mkdocs.yml*
+### Part 3 — Ethernet MAC & PHY Subsystem
 
-At the bottom of that file you will find the nav-structure:
+Implements the physical network interface using the AXI 1G/2.5G Ethernet Subsystem, RGMII signaling, and an external Gigabit PHY. This part handles MAC configuration, PHY management via MDIO, AXI-Stream TX/RX behavior, and reliable delivery of frames to and from the FPGA fabric.
 
-``` yaml
-...
+Each part is developed and validated independently before being integrated into the final end-to-end system.
 
-nav:
- - Welcome: 
-   - General info : index.md
-   - Slides : welcome.md
-```
+---
 
-Indentation is important to get the structure correct. Adding a page is as easy as creating a file with the .md extension (this can be in a subfolder) and adding a line to the navigation structure.
+## Team Responsibilities
 
-### IDE
+The CPU configures the system and submits work descriptors, but all data movement and protocol handling occur in hardware.
 
-If you like to use VS Code, there are some nice extensions for MarkDown. 
+![Project Flow](RDMA_logic/images/project_flow.png)
+*Figure: End-to-end system data flow from RDMA queue submission through IP/UDP packetization to Ethernet transmission*
 
-## Gitlab Pages
+---
 
-I have configured Continuous Integration on this git repository. This means that every time you commit and push files to the main branch, the gitlab server will try to rebuild the website.
-If there is no error in your mkdocs.yml and markdown-files (when it can find all files and there are no syntax errors) then a few minutes after pushing to the repository, your gitlab pages are updated.
-
-**The configuration of this CI (Continuous Integration) should not be changed.**
+## Our Team
+| Member            | Project Part | Responsibility                                             |
+| ----------------- | ------------ | ---------------------------------------------------------- |
+| Tolga Kuntman    | Part 1       | RDMA Core & Queue Engine            |
+| Tubi Soyer      | Part 2       | IP/UDP packetization and decapsulation logic               |
+| Emir Yalcin | Part 3       | Ethernet MAC/PHY subsystem and low-level TX/RX integration |
 
