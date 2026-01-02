@@ -1,9 +1,17 @@
 `timescale 1ns / 1ps
+
 //////////////////////////////////////////////////////////////////////////////////
-// tb_ip_decapsulator.v
-// Comprehensive testbench for ip_decapsulator module
-//
-// Tests:
+// ------------------------------------------------------------------------------
+// -- Company: KUL - Group T - RDMA Team
+// -- Engineer: Tubi Soyer <tugberksoyer@gmail.com>
+// -- 
+// -- Create Date: 22/11/2025 12:09:11 PM
+// -- Design Name: 
+// -- Module Name: ip_decapsulator_tb
+// -- Project Name: RDMA
+// -- Target Devices: Kria KR260
+// -- Tool Versions: 
+// -- Description:
 //   1. Valid Ethernet/IP/UDP frame reception
 //   2. Payload extraction
 //   3. Metadata generation
@@ -11,6 +19,14 @@
 //   5. Error packet handling (tuser asserted)
 //   6. Multi-packet reception
 //   7. Backpressure handling
+// -- 
+// -- Dependencies: 
+// -- 
+// -- Revision:
+// -- Revision 0.01 - File Created
+// -- Additional Comments:
+// -- 
+// -------------------------------------------------------------------------------
 //////////////////////////////////////////////////////////////////////////////////
 
 module ip_decapsulator_tb;

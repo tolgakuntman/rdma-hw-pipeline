@@ -1,4 +1,30 @@
 `timescale 1ns / 1ps
+
+//////////////////////////////////////////////////////////////////////////////////
+// ------------------------------------------------------------------------------
+// -- Company: KUL - Group T - RDMA Team
+// -- Engineer: Tubi Soyer <tugberksoyer@gmail.com>
+// -- 
+// -- Create Date: 22/11/2025 12:09:11 PM
+// -- Design Name: 
+// -- Module Name: endpoint_lookup_tb
+// -- Project Name: RDMA
+// -- Target Devices: Kria KR260
+// -- Tool Versions: 
+// -- Description:
+//      - Instantiates endpoint_lookup_bram with ADDR_WIDTH=8, BRAM_DATA_WIDTH=256
+//      - Provides synchronous BRAM Port B (behavioral) and initializes several entries
+//      - Drives lookup_valid with a few IPs and prints lookup results
+// -- 
+// -- Dependencies: 
+// -- 
+// -- Revision:
+// -- Revision 0.01 - File Created
+// -- Additional Comments:
+// -- 
+// -------------------------------------------------------------------------------
+//////////////////////////////////////////////////////////////////////////////////
+
 // endpoint_lookup_tb.v
 // Testbench for endpoint_lookup_bram
 //

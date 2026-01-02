@@ -1,13 +1,25 @@
 `timescale 1ns / 1ps
+
 //////////////////////////////////////////////////////////////////////////////////
-// ip_encapsulator.v
-// Top-level Part2 wrapper: Accepts meta + payload AXIS, builds ETH/IP/UDP headers,
-// looks up MACs in BRAM, packs headers + payload onto m_axis, exposes BRAM Port B
-// for Block Memory Generator, and exposes AXI-Lite for control/stats.
-//
-// Assumptions:
-//  - meta_axis is 1-beat per-packet carrying payload_len, src_ip, dst_ip, src_port, dst_port, flags, endpoint_id
-//  - BRAM port B is connected externally in the BD
+// ------------------------------------------------------------------------------
+// -- Company: KUL - Group T - RDMA Team
+// -- Engineer: Tubi Soyer <tugberksoyer@gmail.com>
+// -- 
+// -- Create Date: 22/11/2025 12:09:11 PM
+// -- Design Name: 
+// -- Module Name: ip_encapsulator
+// -- Project Name: RDMA
+// -- Target Devices: Kria KR260
+// -- Tool Versions: 
+// -- Description: 
+// -- 
+// -- Dependencies: 
+// -- 
+// -- Revision:
+// -- Revision 0.01 - File Created
+// -- Additional Comments:
+// -- 
+// -------------------------------------------------------------------------------
 //////////////////////////////////////////////////////////////////////////////////
 
 module ip_encapsulator #(

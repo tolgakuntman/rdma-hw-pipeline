@@ -1,6 +1,27 @@
 `timescale 1ns / 1ps
-// udp_header.v
-// Build UDP header
+
+//////////////////////////////////////////////////////////////////////////////////
+// ------------------------------------------------------------------------------
+// -- Company: KUL - Group T - RDMA Team
+// -- Engineer: Tubi Soyer <tugberksoyer@gmail.com>
+// -- 
+// -- Create Date: 22/11/2025 12:09:11 PM
+// -- Design Name: 
+// -- Module Name: udp_header
+// -- Project Name: RDMA
+// -- Target Devices: Kria KR260
+// -- Tool Versions: 
+// -- Description: 
+// -- 
+// -- Dependencies: 
+// -- 
+// -- Revision:
+// -- Revision 0.01 - File Created
+// -- Additional Comments:
+// -- 
+// -------------------------------------------------------------------------------
+//////////////////////////////////////////////////////////////////////////////////
+
 module udp_header(
     input  wire clk,
     input  wire rstn,
@@ -54,23 +75,4 @@ always @(posedge clk) begin
     end
 end
 
-
-/*
-always @(posedge clk) begin
-    if (!rstn) begin
-        valid_out <= 0;
-        ready_in <= 1;
-    end else begin
-        if (valid_in && ready_in) begin
-            udp_header[63:48] <= src_port;
-            udp_header[47:32] <= dst_port;
-            udp_header[31:16] <= udp_length;
-            udp_header[15:0]  <= 16'h0000; // checksum 0
-            valid_out <= 1;
-        end else if (valid_out && ready_out) begin
-            valid_out <= 0;
-        end
-    end
-end
-*/
 endmodule

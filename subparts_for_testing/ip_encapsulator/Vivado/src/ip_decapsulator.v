@@ -1,16 +1,32 @@
 `timescale 1ns / 1ps
+
 //////////////////////////////////////////////////////////////////////////////////
-// ip_decapsulator.v
-// Top-level RX wrapper: Receives Ethernet frames, strips headers, outputs payload
-//
-// This is the receive counterpart to ip_encapsulator.v
-//
-// Features:
-//  - Parse Ethernet/IP/UDP headers
-//  - Validate packet structure
-//  - Extract metadata (src/dst IP, ports)
-//  - Forward pure UDP payload to RDMA layer
-//  - Statistics via AXI-Lite
+// ------------------------------------------------------------------------------
+// -- Company: KUL - Group T - RDMA Team
+// -- Engineer: Tubi Soyer <tugberksoyer@gmail.com>
+// -- 
+// -- Create Date: 22/11/2025 12:09:11 PM
+// -- Design Name: 
+// -- Module Name: ip_decapsulator
+// -- Project Name: RDMA
+// -- Target Devices: Kria KR260
+// -- Tool Versions: 
+// -- Description:
+//      Top-level RX wrapper: Receives Ethernet frames, strips headers, outputs payload
+//      Features:
+//          - Parse Ethernet/IP/UDP headers
+//          - Validate packet structure
+//          - Extract metadata (src/dst IP, ports)
+//          - Forward pure UDP payload to RDMA layer
+//          - Statistics via AXI-Lite 
+// -- 
+// -- Dependencies: 
+// -- 
+// -- Revision:
+// -- Revision 0.01 - File Created
+// -- Additional Comments:
+// -- 
+// -------------------------------------------------------------------------------
 //////////////////////////////////////////////////////////////////////////////////
 
 module ip_decapsulator #(

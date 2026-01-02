@@ -1,13 +1,27 @@
 `timescale 1ns/1ps
 `default_nettype none
 
-// Testbench for meta_align.v
-// - Exercises enqueue and dequeue behavior
-// - Toggles meta_out_ready to simulate downstream backpressure
-// - Prints inputs and outputs and checks ordering
-//
-// Author: ChatGPT
-// Date: 2025-11-01
+//////////////////////////////////////////////////////////////////////////////////
+// ------------------------------------------------------------------------------
+// -- Company: KUL - Group T - RDMA Team
+// -- Engineer: Tubi Soyer <tugberksoyer@gmail.com>
+// -- 
+// -- Create Date: 22/11/2025 12:09:11 PM
+// -- Design Name: 
+// -- Module Name: meta_align_tb
+// -- Project Name: RDMA
+// -- Target Devices: Kria KR260
+// -- Tool Versions: 
+// -- Description:
+// -- 
+// -- Dependencies: 
+// -- 
+// -- Revision:
+// -- Revision 0.01 - File Created
+// -- Additional Comments:
+// -- 
+// -------------------------------------------------------------------------------
+//////////////////////////////////////////////////////////////////////////////////
 
 module meta_align_tb;
 

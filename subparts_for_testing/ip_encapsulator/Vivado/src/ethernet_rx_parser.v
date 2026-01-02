@@ -1,16 +1,34 @@
 `timescale 1ns / 1ps
+
 //////////////////////////////////////////////////////////////////////////////////
-// ethernet_rx_parser.v
-// Parse incoming Ethernet frames and extract UDP payload
-//
-// Input: Complete Ethernet frame (Eth + IP + UDP + Payload)
-// Output: UDP payload + metadata
-//
-// Frame structure (64-bit DATA_WIDTH):
-//   Beat 0-1:   Ethernet header (14 bytes)
-//   Beat 2-4:   IPv4 header (20 bytes)
-//   Beat 5:     UDP header (8 bytes) + start of payload
-//   Beat 6-N:   Payload data
+// ------------------------------------------------------------------------------
+// -- Company: KUL - Group T - RDMA Team
+// -- Engineer: Tubi Soyer <tugberksoyer@gmail.com>
+// -- 
+// -- Create Date: 22/11/2025 12:09:11 PM
+// -- Design Name: 
+// -- Module Name: ethernet_rx_parser
+// -- Project Name: RDMA
+// -- Target Devices: Kria KR260
+// -- Tool Versions: 
+// -- Description:
+//      Parse incoming Ethernet frames and extract UDP payload
+//      Input: Complete Ethernet frame (Eth + IP + UDP + Payload)
+//      Output: UDP payload + metadata
+//      
+//      Frame structure (64-bit DATA_WIDTH):
+//          Beat 0-1:   Ethernet header (14 bytes)
+//          Beat 2-4:   IPv4 header (20 bytes)
+//          Beat 5:     UDP header (8 bytes) + start of payload
+//          Beat 6-N:   Payload data 
+// -- 
+// -- Dependencies: 
+// -- 
+// -- Revision:
+// -- Revision 0.01 - File Created
+// -- Additional Comments:
+// -- 
+// -------------------------------------------------------------------------------
 //////////////////////////////////////////////////////////////////////////////////
 
 module ethernet_rx_parser #(

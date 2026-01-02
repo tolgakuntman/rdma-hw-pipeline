@@ -1,6 +1,27 @@
 `timescale 1ns / 1ps
-// length_calc.v
-// Calculates IP total length and UDP length
+
+//////////////////////////////////////////////////////////////////////////////////
+// ------------------------------------------------------------------------------
+// -- Company: KUL - Group T - RDMA Team
+// -- Engineer: Tubi Soyer <tugberksoyer@gmail.com>
+// -- 
+// -- Create Date: 22/11/2025 12:09:11 PM
+// -- Design Name: 
+// -- Module Name: length_calc
+// -- Project Name: RDMA
+// -- Target Devices: Kria KR260
+// -- Tool Versions: 
+// -- Description: 
+// -- 
+// -- Dependencies: 
+// -- 
+// -- Revision:
+// -- Revision 0.01 - File Created
+// -- Additional Comments:
+// -- 
+// -------------------------------------------------------------------------------
+//////////////////////////////////////////////////////////////////////////////////
+
 module length_calc #(
     parameter PAYLOAD_WIDTH = 16 // payload length in bytes
 )(
@@ -51,23 +72,4 @@ always @(posedge clk) begin
     end
 end
 
-
-/*
-always @(posedge clk) begin
-    if (!rstn) begin
-        ip_total_length <= 0;
-        udp_length <= 0;
-        length_valid <= 0;
-        payload_len_ready <= 1;
-    end else begin
-        if (payload_len_valid && payload_len_ready) begin
-            ip_total_length <= 20 + 8 + payload_len_in; // IP header + UDP header + payload
-            udp_length      <= 8 + payload_len_in;      // UDP header + payload
-            length_valid <= 1;
-        end else if (length_valid && length_ready) begin
-            length_valid <= 0;
-        end
-    end
-end
-*/
 endmodule

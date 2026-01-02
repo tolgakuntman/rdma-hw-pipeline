@@ -1,31 +1,25 @@
 `timescale 1ns / 1ps
+
 //////////////////////////////////////////////////////////////////////////////////
-// endpoint_lookup_bram.v
-// BRAM-backed endpoint lookup
-//
-// - Simple design: single synchronous BRAM read per lookup, compare stored dst_ip to
-//   requested dst_ip, return dst_mac/src_mac on hit.
-// - BRAM port B is read-only from PL side. PS programs BRAM via AXI BRAM Controller
-//   on BRAM port A.
-//
-// Parameters:
-//  - ADDR_WIDTH       : address width for BRAM (2^ADDR_WIDTH entries)
-//  - BRAM_DATA_WIDTH  : bit-width of each BRAM word (must be >=160 to store IP+MACs)
-//
-// BRAM entry layout (MSB-first bit positions):
-//  - bit [BRAM_DATA_WIDTH-1]                   : entry_valid (1 = valid)
-//  - bits [BRAM_DATA_WIDTH-2 : BRAM_DATA_WIDTH-32] : reserved (31 bits)
-//  - bits [BRAM_DATA_WIDTH-33 : BRAM_DATA_WIDTH-64] : dst_ip (32 bits)
-//  - bits [BRAM_DATA_WIDTH-65 : BRAM_DATA_WIDTH-112]: dst_mac (48 bits)
-//  - bits [BRAM_DATA_WIDTH-113 : BRAM_DATA_WIDTH-160]: src_mac (48 bits)
-//  - remaining lower bits reserved
-//
-// Example: BRAM_DATA_WIDTH = 192 is a convenient default.
-//
-// Notes:
-//  - BRAM is synchronous: asserting addr+en yields dout valid the next rising edge.
-//  - The module uses a simple hash (xor of low and some high bits) to create an index.
-//    For deterministic mapping you may choose to use lower bits of IP directly.
+// ------------------------------------------------------------------------------
+// -- Company: KUL - Group T - RDMA Team
+// -- Engineer: Tubi Soyer <tugberksoyer@gmail.com>
+// -- 
+// -- Create Date: 22/11/2025 12:09:11 PM
+// -- Design Name: 
+// -- Module Name: endpoint_lookup
+// -- Project Name: RDMA
+// -- Target Devices: Kria KR260
+// -- Tool Versions: 
+// -- Description: 
+// -- 
+// -- Dependencies: 
+// -- 
+// -- Revision:
+// -- Revision 0.01 - File Created
+// -- Additional Comments:
+// -- 
+// -------------------------------------------------------------------------------
 //////////////////////////////////////////////////////////////////////////////////
 
 module endpoint_lookup #(
