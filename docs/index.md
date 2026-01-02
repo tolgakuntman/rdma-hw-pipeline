@@ -33,7 +33,7 @@ Each part is developed and validated independently before being integrated into 
 
 The CPU configures the system and submits work descriptors, but all data movement and protocol handling occur in hardware.
 
-![Project Flow](RDMA_logic/images/project_flow.png)
+![Project Flow](project/RDMA_logic/images/project_flow.png)
 *Figure: End-to-end system data flow from RDMA queue submission through IP/UDP packetization to Ethernet transmission*
 
 ---
