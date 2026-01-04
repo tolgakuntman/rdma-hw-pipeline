@@ -1,7 +1,27 @@
 `timescale 1ns/1ps
-// ============================================================================
-// Module: rdma_meta_validator
-// ============================================================================
+
+//////////////////////////////////////////////////////////////////////////////////
+// ------------------------------------------------------------------------------
+// -- Company: KUL - Group T - RDMA Team
+// -- Engineer: Tubi Soyer <tugberksoyer@gmail.com>
+// -- 
+// -- Create Date: 22/11/2025 12:09:11 PM
+// -- Design Name: 
+// -- Module Name: rdma_meta_validator
+// -- Project Name: RDMA
+// -- Target Devices: Kria KR260
+// -- Tool Versions: 
+// -- Description: 
+// -- 
+// -- Dependencies: 
+// -- 
+// -- Revision:
+// -- Revision 0.01 - File Created
+// -- Additional Comments:
+// -- 
+// -------------------------------------------------------------------------------
+//////////////////////////////////////////////////////////////////////////////////
+
 module rdma_meta_validator (
     input  wire        iClk,
     input  wire        iRst,

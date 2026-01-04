@@ -1,19 +1,36 @@
 `timescale 1ns / 1ps
 
-// -----------------------------------------------------------------------------
-// ip_encapsulator_simple.v - MODIFIED VERSION
+//////////////////////////////////////////////////////////////////////////////////
+// ------------------------------------------------------------------------------
+// -- Company: KUL - Group T - RDMA Team
+// -- Engineer: Tubi Soyer <tugberksoyer@gmail.com>
+// -- 
+// -- Create Date: 22/11/2025 12:09:11 PM
+// -- Design Name: 
+// -- Module Name: ip_encapsulator_simple
+// -- Project Name: RDMA
+// -- Target Devices: Kria KR260
+// -- Tool Versions: 
+// -- Description:
+//      - Metadata is now received as the first 5 words of the AXI stream:
+//          Word 0: SRC_IP
+//          Word 1: DST_IP
+//          Word 2: PAYLOAD_LEN (lower 16 bits)
+//          Word 3: SRC_PORT (lower 16 bits)
+//          Word 4: DST_PORT (lower 16 bits)
 //
-// Metadata is now received as the first 5 words of the AXI stream:
-//   Word 0: SRC_IP
-//   Word 1: DST_IP
-//   Word 2: PAYLOAD_LEN (lower 16 bits)
-//   Word 3: SRC_PORT (lower 16 bits)
-//   Word 4: DST_PORT (lower 16 bits)
-//
-// After receiving 5 metadata words, s_axis_tready goes low while headers
-// are built. Once headers are ready, s_axis_tready goes high again to
-// receive the payload.
-// -----------------------------------------------------------------------------
+//      - After receiving 5 metadata words, s_axis_tready goes low while headers
+//        are built. Once headers are ready, s_axis_tready goes high again to
+//        receive the payload. 
+// -- 
+// -- Dependencies: 
+// -- 
+// -- Revision:
+// -- Revision 0.01 - File Created
+// -- Additional Comments:
+// -- 
+// -------------------------------------------------------------------------------
+//////////////////////////////////////////////////////////////////////////////////
 
 module ip_encapsulator_simple #(
     parameter DATA_WIDTH = 32

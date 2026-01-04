@@ -1,23 +1,40 @@
 `timescale 1ns/1ps
-// ============================================================================
-// Module: ip_eth_tx_64_rdma
-// Description: Streaming IPv4/UDP/Ethernet transmitter with 32-bit datapath
-//              Based on Alex Forencich verilog-ethernet (github)
-// ============================================================================
-// With 32-bit datapath, 42-byte header takes 11 beats:
-// Beat 0:  Bytes 0-3   (Dst MAC [0:3])
-// Beat 1:  Bytes 4-7   (Dst MAC [4:5] + Src MAC [0:1])
-// Beat 2:  Bytes 8-11  (Src MAC [2:5])
-// Beat 3:  Bytes 12-15 (EtherType + IP Ver/IHL/DSCP)
-// Beat 4:  Bytes 16-19 (IP Total Len + IP ID)
-// Beat 5:  Bytes 20-23 (Flags/Frag + TTL + Protocol)
-// Beat 6:  Bytes 24-27 (IP Checksum + Src IP [0:1])
-// Beat 7:  Bytes 28-31 (Src IP [2:3])
-// Beat 8:  Bytes 32-35 (Dst IP [0:3])
-// Beat 9:  Bytes 36-39 (UDP Src Port + UDP Dst Port)
-// Beat 10: Bytes 40-43 (UDP Len + UDP Checksum + first 2 payload bytes)
-// Beat 11+: Payload (with 2-byte offset)
-// ============================================================================
+
+//////////////////////////////////////////////////////////////////////////////////
+// ------------------------------------------------------------------------------
+// -- Company: KUL - Group T - RDMA Team
+// -- Engineer: Tubi Soyer <tugberksoyer@gmail.com>
+// -- 
+// -- Create Date: 22/11/2025 12:09:11 PM
+// -- Design Name: 
+// -- Module Name: ip_eth_tx_64_rdma
+// -- Project Name: RDMA
+// -- Target Devices: Kria KR260
+// -- Tool Versions: 
+// -- Description: 
+//      - With 32-bit datapath, 42-byte header takes 11 beats:
+//          Beat 0:  Bytes 0-3   (Dst MAC [0:3])
+//          Beat 1:  Bytes 4-7   (Dst MAC [4:5] + Src MAC [0:1])
+//          Beat 2:  Bytes 8-11  (Src MAC [2:5])
+//          Beat 3:  Bytes 12-15 (EtherType + IP Ver/IHL/DSCP)
+//          Beat 4:  Bytes 16-19 (IP Total Len + IP ID)
+//          Beat 5:  Bytes 20-23 (Flags/Frag + TTL + Protocol)
+//          Beat 6:  Bytes 24-27 (IP Checksum + Src IP [0:1])
+//          Beat 7:  Bytes 28-31 (Src IP [2:3])
+//          Beat 8:  Bytes 32-35 (Dst IP [0:3])
+//          Beat 9:  Bytes 36-39 (UDP Src Port + UDP Dst Port)
+//          Beat 10: Bytes 40-43 (UDP Len + UDP Checksum + first 2 payload bytes)
+//          Beat 11+: Payload (with 2-byte offset)
+// -- 
+// -- Dependencies: 
+// -- 
+// -- Revision:
+// -- Revision 0.01 - File Created
+// -- Additional Comments:
+// -- 
+// -------------------------------------------------------------------------------
+//////////////////////////////////////////////////////////////////////////////////
+
 module ip_eth_tx_64_rdma #(
     parameter [47:0] SRC_MAC = 48'h123456789ABC,
     parameter [47:0] DST_MAC = 48'h000A35010203

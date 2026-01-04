@@ -1,12 +1,31 @@
 `timescale 1ns/1ps
-// ============================================================================
-// Module: rdma_hdr_validator
-// Description: Validates extracted RX headers (mirrors TX rdma_meta_validator)
-//              Separates validation from streaming for cleaner architecture
-//
-// Flow: ip_eth_rx_64_rdma extracts headers -> rdma_hdr_validator validates
-//       -> validated headers to control logic
-// ============================================================================
+
+//////////////////////////////////////////////////////////////////////////////////
+// ------------------------------------------------------------------------------
+// -- Company: KUL - Group T - RDMA Team
+// -- Engineer: Tubi Soyer <tugberksoyer@gmail.com>
+// -- 
+// -- Create Date: 22/11/2025 12:09:11 PM
+// -- Design Name: 
+// -- Module Name: rdma_hdr_validator
+// -- Project Name: RDMA
+// -- Target Devices: Kria KR260
+// -- Tool Versions: 
+// -- Description: 
+//      - Validates extracted RX headers (mirrors TX rdma_meta_validator)
+//      - Separates validation from streaming for cleaner architecture
+//      - Flow: ip_eth_rx_64_rdma extracts headers -> rdma_hdr_validator validates
+//             -> validated headers to control logic
+// -- 
+// -- Dependencies: 
+// -- 
+// -- Revision:
+// -- Revision 0.01 - File Created
+// -- Additional Comments:
+// -- 
+// -------------------------------------------------------------------------------
+//////////////////////////////////////////////////////////////////////////////////
+
 module rdma_hdr_validator #(
     parameter [47:0] LOCAL_MAC  = 48'h000A35010203,
     parameter [15:0] LOCAL_PORT = 16'd5005

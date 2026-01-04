@@ -1,9 +1,30 @@
 `timescale 1ns/1ps
-// ============================================================================
-// Streaming IPv4/UDP/Ethernet receiver with 32-bit datapath
-// Mirrors ip_eth_tx_64_rdma structure - pure extraction, no validation
-// Validation is done by rdma_hdr_validator (same pattern as TX)
-// ============================================================================
+
+//////////////////////////////////////////////////////////////////////////////////
+// ------------------------------------------------------------------------------
+// -- Company: KUL - Group T - RDMA Team
+// -- Engineer: Tubi Soyer <tugberksoyer@gmail.com>
+// -- 
+// -- Create Date: 22/11/2025 12:09:11 PM
+// -- Design Name: 
+// -- Module Name: ip_eth_rx_64_rdma
+// -- Project Name: RDMA
+// -- Target Devices: Kria KR260
+// -- Tool Versions: 
+// -- Description: 
+//      - Streaming IPv4/UDP/Ethernet receiver with 32-bit datapath
+//      - Mirrors ip_eth_tx_64_rdma structure - pure extraction, no validation
+//      - Validation is done by rdma_hdr_validator (same pattern as TX)
+// -- 
+// -- Dependencies: 
+// -- 
+// -- Revision:
+// -- Revision 0.01 - File Created
+// -- Additional Comments:
+// -- 
+// -------------------------------------------------------------------------------
+//////////////////////////////////////////////////////////////////////////////////
+
 module ip_eth_rx_64_rdma (
     input  wire        iClk,
     input  wire        iRst,        // Active-low reset (same as TX)

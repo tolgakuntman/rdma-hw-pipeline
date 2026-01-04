@@ -1,7 +1,27 @@
 `timescale 1ns/1ps
-// ============================================================================
-// Module: rdma_ip_encap_integrated
-// ============================================================================
+
+//////////////////////////////////////////////////////////////////////////////////
+// ------------------------------------------------------------------------------
+// -- Company: KUL - Group T - RDMA Team
+// -- Engineer: Tubi Soyer <tugberksoyer@gmail.com>
+// -- 
+// -- Create Date: 22/11/2025 12:09:11 PM
+// -- Design Name: 
+// -- Module Name: rdma_ip_encap_integrated
+// -- Project Name: RDMA
+// -- Target Devices: Kria KR260
+// -- Tool Versions: 
+// -- Description: 
+// -- 
+// -- Dependencies: 
+// -- 
+// -- Revision:
+// -- Revision 0.01 - File Created
+// -- Additional Comments:
+// -- 
+// -------------------------------------------------------------------------------
+//////////////////////////////////////////////////////////////////////////////////
+
 module rdma_ip_encap_integrated #(
     parameter [47:0] SRC_MAC = 48'h123456789ABC,
     parameter [47:0] DST_MAC = 48'h000A35010203

@@ -1,10 +1,30 @@
 `timescale 1ns/1ps
-// ============================================================================
-// Module: rdma_ip_decap_integrated
-// Description: Receives Ethernet frames and extracts payload + headers
-//              Mirrors TX rdma_ip_encap_integrated architecture:
-//              [Streaming RX] -> [Header Validator] -> outputs
-// ============================================================================
+
+//////////////////////////////////////////////////////////////////////////////////
+// ------------------------------------------------------------------------------
+// -- Company: KUL - Group T - RDMA Team
+// -- Engineer: Tubi Soyer <tugberksoyer@gmail.com>
+// -- 
+// -- Create Date: 22/11/2025 12:09:11 PM
+// -- Design Name: 
+// -- Module Name: rdma_ip_decap_integrated
+// -- Project Name: RDMA
+// -- Target Devices: Kria KR260
+// -- Tool Versions: 
+// -- Description: 
+//      - Receives Ethernet frames and extracts payload + headers
+//      - Mirrors TX rdma_ip_encap_integrated architecture:
+//          [Streaming RX] -> [Header Validator] -> outputs
+// -- 
+// -- Dependencies: 
+// -- 
+// -- Revision:
+// -- Revision 0.01 - File Created
+// -- Additional Comments:
+// -- 
+// -------------------------------------------------------------------------------
+//////////////////////////////////////////////////////////////////////////////////
+
 module rdma_ip_decap_integrated #(
     parameter [47:0] LOCAL_MAC  = 48'h000A35010203,
     parameter [15:0] LOCAL_PORT = 16'd5005
