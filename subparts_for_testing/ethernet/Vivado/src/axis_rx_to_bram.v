@@ -2,9 +2,9 @@
 -- Company: KUL - Group T - RDMA Team
 -- Engineer: Emir Yalcin <emir.yalcin@hotmail.com>
 -- 
--- Create Date: 11/13/2024 22:22:22 PM
+-- Create Date: 22/11/2025 12:09:11 PM
 -- Design Name: 
--- Module Name: axis_rx_to_rdma
+-- Module Name: axis_rx_to_bram
 -- Project Name: RDMA
 -- Target Devices: Kria KR260
 -- Tool Versions: 
@@ -17,12 +17,14 @@
 -- Additional Comments:
 -- 
 ----------------------------------------------------------------------------------
+// axis_rx_to_rdma.v
+// AXI Ethernet RX (m_axis_rxd + m_axis_rxs) --> RDMA RX decapsulator
 module axis_rx_to_bram #(
-    parameter DUMMY = 0    //placeholder
+    parameter DUMMY = 0    
 )(
     input  wire        axis_clk,
     input  wire        axis_aresetn,
-    input  wire        capture_en,   // I put it here for initial tests with both tx and rx. Tie this permanently to 1 if you always want to capture
+    input  wire        capture_en,  
 
     // -------------------------------------------------
     // AXI-Stream RX DATA (from axi_ethernet_0.m_axis_rxd)
@@ -35,11 +37,11 @@ module axis_rx_to_bram #(
 
     // -------------------------------------------------
     // AXI-Stream RX STATUS (from axi_ethernet_0.m_axis_rxs)
-    // According to ethernet ip datasheet:
-    //   tdata[15:0]  = frame length in bytes
-    //   tdata[31:16] = VLAN tag / auxiliary fields
-    //   tkeep        = 4'hF
-    //   tlast        = 1 (single word)
+    // PG138:
+    //  tdata[15:0]  = status bits
+    //  tdata[31:16] = frame length (bytes)
+    //  tkeep        = 4'hF
+    //  tlast        = 1 
     // -------------------------------------------------
     input  wire [31:0] s_axis_rxs_tdata,
     input  wire [3:0]  s_axis_rxs_tkeep,
@@ -48,8 +50,7 @@ module axis_rx_to_bram #(
     input  wire        s_axis_rxs_tlast,
 
     // -------------------------------------------------
-    // AXI-Stream master: Ethernet frame -> RDMA decapsulator
-    // (In the BD this connects to rdma_axilite_rx_ctrl_0.s_axis_eth_*)
+    // AXI-Stream master: ETH frame -> RDMA decapsulator  
     // -------------------------------------------------
     output reg  [31:0] m_axis_eth_tdata,
     output reg  [3:0]  m_axis_eth_tkeep,
@@ -57,18 +58,10 @@ module axis_rx_to_bram #(
     input  wire        m_axis_eth_tready,
     output reg         m_axis_eth_tlast,
 
-    // -------------------------------------------------
-    // Simple status outputs (for PS/Vitis – we did not use them in the final version)
-    // -------------------------------------------------
-    output reg         frame_done,       // Pulses when a "good frame" is received (status bit0 = 1)
-    output reg [15:0]  frame_len_bytes  
+    output reg         frame_done,       
+    output reg [15:0]  frame_len_bytes   // RXS length field
 );
 
-    // --------------------------------------------------------------------
-    // DATA PATH:
-    //  - If the buffer is empty OR downstream is ready, accept a new word
-    //  - While downstream is not ready, hold m_axis_eth_* stable (valid + data) (this solved the problem of decapsulator validator hanging the line for a few clocks and causing lost words)
-    // --------------------------------------------------------------------
     assign s_axis_tready = capture_en && (!m_axis_eth_tvalid || m_axis_eth_tready);
 
     reg last_frame_ok;
@@ -88,36 +81,33 @@ module axis_rx_to_bram #(
             last_frame_ok     <= 1'b0;
         end
         else begin
-            // ------------ default status values -------------
-            frame_done        <= 1'b0;      // one-cycle pulse
-            s_axis_rxs_tready <= 1'b1;      // always ready to accept status
+            // ------------ defaults (status) -------------
+            frame_done        <= 1'b0;      
+            s_axis_rxs_tready <= 1'b1;     
 
             // ----------------------------------
-            // DATA: pass m_axis_rxd forward to m_axis_eth
+            // DATA: m_axis_rxd -> m_axis_eth 
             //  - Upstream handshake: capture_en && s_axis_tvalid && s_axis_tready
             //  - Downstream handshake: m_axis_eth_tvalid && m_axis_eth_tready
             // ----------------------------------
             if (capture_en && s_axis_tvalid && s_axis_tready) begin
-                // Capture a new word into the buffer
+
                 m_axis_eth_tdata  <= s_axis_tdata;
                 m_axis_eth_tkeep  <= s_axis_tkeep;
                 m_axis_eth_tlast  <= s_axis_tlast;
                 m_axis_eth_tvalid <= 1'b1;
             end
             else if (m_axis_eth_tvalid && m_axis_eth_tready) begin
-                // Downstream consumed this word, buffer is now empty
                 m_axis_eth_tvalid <= 1'b0;
-                // tdata/tkeep/tlast don't matter when valid=0; they won't be observed
             end
 
             // ----------------------------------
-            // STATUS: consume m_axis_rxs and extract length / frame_ok
+            // STATUS: m_axis_rxs -> length / frame_ok
             // ----------------------------------
             if (s_axis_rxs_tvalid && s_axis_rxs_tready) begin
-                // ethernet ip block datasheet: tdata[15:0] = frame length in bytes
+                // PG138: tdata[15:0] = frame length (bytes)
                 frame_len_bytes <= s_axis_rxs_tdata[15:0];
 
-                // Treat bit 0 as "frame_ok"
                 last_frame_ok <= s_axis_rxs_tdata[0];
 
                 if (s_axis_rxs_tlast && s_axis_rxs_tdata[0]) begin
