@@ -36,17 +36,18 @@ Each port is implemented using a dedicated **TI DP83867** Gigabit Ethernet PHY.
 
 Each Ethernet interface consists of the following hardware path:
 
-1. **RJ45 jack with integrated magnetics**  
+1.**RJ45 jack with integrated magnetics**  
    Provides isolation and differential coupling for 10/100/1000BASE-T.
 
-2. **DP83867CS Gigabit PHY**  
+2.**DP83867CS Gigabit PHY**  
    Converts copper Ethernet signaling into digital RGMII signals. Handles: Line coding / decoding , Auto-negotiation, and Speed selection (10/100/1000).
 
-3. **RGMII interface into FPGA PL**  
+3.**RGMII interface into FPGA PL**  
       `rgmii_td[3:0]`, `rgmii_tx_ctl`, `rgmii_txc`  
       `rgmii_rd[3:0]`, `rgmii_rx_ctl`, `rgmii_rxc`  
 
-4. **AXI 1G/2.5G Ethernet Subsystem (MAC)** 
+4.**AXI 1G/2.5G Ethernet Subsystem (MAC)** 
+
    The MAC consumes RGMII signals and exposes:
    - AXI-Stream TX/RX interfaces  
    - MDIO management  
@@ -69,6 +70,7 @@ The TI DP83867CS device provides several features essential to KR260 RGMII opera
 - **MDIO/MDC** interface for configuration and status
    
    Strap pins determining:
+
   - PHY address  
   - RGMII/SGMII mode  
   - TX/RX delay defaults  
@@ -174,7 +176,7 @@ The DP83867 performs the following in hardware:
 3. Determines best common mode
 4. Enables internal clocking paths for that mode
 5. Sets status bits:
-   - `BMSR[2]` — LINK_STATUS  
+   `BMSR[2]` — LINK_STATUS  
 
 This entire process occurs **independently of the MAC**.
 
@@ -235,7 +237,7 @@ So basically we enable all clock pulses for our 1GBPS design with enable_gen mod
 
 ## 4. RGMII Debugging Guide 
 
-### 4.1 First Question: **Is the PHY Alive?**
+### 4.1 **Is the PHY Alive?**
 
 Before touching the MAC, always confirm the PHY is actually responding.
 
@@ -263,7 +265,7 @@ If you get `0xFFFF`:
 
 ---
 
-### 4.2 Link LED Status
+### 4.2 **Link LED Status**
 
 LED's for PHY is important for seeing the status of connection without looking at the registers with MDIO. The good thing is there are different status view options that you can adjust by using the LED configuration registers. In the datasheet, there are two tables showing the LED configuration registers.
 
@@ -290,7 +292,7 @@ If LINK LED is off:
 
 ---
 
-### 4.3 Autonegotiation Debugging
+### 4.3 **Autonegotiation Debugging**
 
 The DP83867 autoneg FSM may fail silently.
 

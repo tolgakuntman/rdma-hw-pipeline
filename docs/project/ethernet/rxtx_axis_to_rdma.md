@@ -151,11 +151,10 @@ In our RDMA design we did not use any checksum so my custom tx ip sets `default:
 
 ### 4. Tx/Rx Custom IP - Encapsulator/Decapsulator Connection
 
-I have talked about MAC side connections so far and I need to mention shortly how we connect the custom ip block to decapsulator/encapsulator block. We use axi stream connection between the two and we have frame_len_bytes line for byte length info  that we take from rxs. I already talked about this and in our final design we dont use it so the connection is just the axi stream.
+So far, I have described the MAC-side connections. Briefly, the custom IP block is connected to the decapsulator/encapsulator block using an AXI4-Stream interface. Although a frame_len_bytes signal carrying byte-length information from the RX side is available and was discussed earlier, it is not used in the final design. Therefore, the connection between these blocks consists solely of the AXI4-Stream interface.
 
 ![connection](images/rx_to_rdma_decap.png)
 
 ### 5. Final Words
 
-In this part, I talked about the most important part of PL ethernet, designing a custom IP block to drive Media Access Controller (MAC) aka AXI 1G/2.5G Ethernet ip block. After reading the datasheet, we have learned how to use txd, txc, rxd, and rxs axi stream connections for a communication between ethernet ip block and our custom block. This section focused on the last part of PL ethernet for RDMA rx and the first part of PL ethernet for RDMA tx. 
-
+In this part, I discussed the most critical aspect of PL Ethernet: designing a custom IP block to interface with the Media Access Controller (MAC), i.e., the AXI 1G/2.5G Ethernet IP core. By studying the datasheet, we learned how to use the txd, txc, rxd, and rxs AXI4-Stream interfaces to enable communication between the Ethernet IP core and our custom logic. This section covers the final stage of PL Ethernet for RDMA RX and the initial stage of PL Ethernet for RDMA TX.

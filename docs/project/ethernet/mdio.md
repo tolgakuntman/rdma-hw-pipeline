@@ -163,7 +163,7 @@ ETH-5: PHY init
 PHY addr 2: BMSR = 0x7949
 ```
 
-### 3.3 Enabling / Restarting Autonegotiation via BMCR (ETH-6: PHY autoneg enable/restart)
+### 3.3 Enabling / Restarting Autonegotiation via BMCR 
 
 ```c
     xil_printf("ETH-6: Enable/restart PHY autonegotiation\r\n");
@@ -193,7 +193,7 @@ BMCR new written= 0x1340
 
 When we set AUTONEG_EN | RESTART_AN, we do it because the DP83867 PHY treats these two bits very differently: AUTONEG_EN (bit 12) simply tells the PHY to use auto-negotiation mode, but it does not force the PHY to renegotiate if auto-negotiation was already enabled by hardware straps at boot. On the KR260, the PHY powers up with auto-negotiation already enabled, so rewriting this bit alone does absolutely nothing—it keeps the previous negotiated speed and duplex. To make sure the PHY actually performs a fresh negotiation cycle after we initialize the AXI Ethernet MAC, we also set RESTART_AN (bit 9), which is a self-clearing command bit that immediately instructs the PHY to restart the auto-negotiation state machine. By combining both bits, we ensure two things at once: auto-negotiation is definitely enabled, and a brand-new negotiation cycle is forced to start right now. This guarantees that the link partner and the PHY agree on 1 Gbps full-duplex mode after system startup, preventing any stale or inconsistent link configuration.
 
-### 3.3 Polling Link Status with BMSR (ETH-8)
+### 3.4 Polling Link Status with BMSR
 
 ```c
     xil_printf("ETH-8: Waiting for LINK...\r\n");

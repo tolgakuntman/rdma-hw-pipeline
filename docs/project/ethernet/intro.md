@@ -1,15 +1,15 @@
-# Part 1 - Ethernet Subsystem Overview
+# Ethernet Subsystem Overview
 
-Part 1 of the RDMA receiver architecture implements the complete Ethernet Layer-2 subsystem on the KR260 platform, including both the **transmit (TX)** and **receive (RX)** datapaths, RGMII PHY bring-up, MAC configuration, AXI-Stream buffering, and final integration with the RDMA decapsulation pipeline.  
-This section documents every hardware and software building block required to achieve reliable 1 Gbps Ethernet operation using the **AXI 1G/2.5G Ethernet Subsystem (PG138)** and an RGMII PHY.
+Ethernet part of the RDMA architecture implements the complete Ethernet Layer-2 subsystem on the KR260 platform, including both the **transmit (TX)** and **receive (RX)** datapaths, RGMII PHY bring-up, MAC configuration, AXI-Stream buffering, and final integration with the RDMA decapsulation pipeline.  
+This section documents every hardware and software building block required to achieve reliable 1 Gbps Ethernet operation using the **AXI 1G/2.5G Ethernet Subsystem (PG138)** and an RGMII PHY on the KR260 platform.
 
-The goal is to provide a **fully deterministic, loss-free Ethernet front-end** that delivers raw Ethernet frames into the RDMA processing chain.
+The goal is to provide a **fully deterministic, loss-free Ethernet front-end** that delivers Ethernet frames into the RDMA processing chain.
 
 ---
 
-## 1. Scope of Part-1
+## 1. Scope of Ethernet Subsystem
 
-Part-1 covers the following elements in full detail:
+The following elements are covered in full detail:
 
 ###  RGMII PHY Bring-Up
 
@@ -18,7 +18,7 @@ Part-1 covers the following elements in full detail:
 - Auto-negotiation flow  
 - Link polling strategy  
 - Reset sequencing and timing  
-- 125 MHz clock requirements for RGMII regardless of link speed (10/100/1000 Mbps)
+- 125 MHz input clock requirements for RGMII regardless of link speed (10/100/1000 Mbps)
 
 ### AXI Ethernet Subsystem (MAC) Configuration
 
@@ -37,7 +37,7 @@ This TX path was crucial for verifying physical connectivity and MAC/PHY configu
 
 ### Full RX Pipeline (Integrated With RDMA)
 
-The RX pipeline implemented in Part-1 forms the front-end of the final RDMA receive architecture:
+The RX pipeline implemented in ethernet part forms the front-end of the final RDMA receive architecture:
 Ethernet PHY → RGMII →AXI Ethernet MAC (RX)→ s_axis_rxd + s_axis_rxs → axis_rx_to_rdma → RDMA decapsulation logic 
 
 This path is responsible for:
@@ -46,7 +46,7 @@ This path is responsible for:
 - Correct `tlast`, `tkeep`, and status handling  
 - Eliminating the timing hazards of AXI-Stream valid/ready behavior
 
-The custom RX buffer (`axis_rx_to_bram`) was one of the most critical modules in the entire RDMA pipeline.
+The custom RX pass through ip block (`axis_rx_to_rdma`) was one of the most critical modules in the entire RDMA pipeline.
 
 ---
 
@@ -60,7 +60,7 @@ RDMA packets arrive as raw Ethernet frames. The higher RDMA layers (header parse
 4. **Low-latency delivery into header parser**
 5. **Deterministic timing from RGMII → MAC → AXIS**
 
-The Ethernet subsystem in Part-1 is responsible for guaranteeing all of these properties.
+The Ethernet subsystem is responsible for guaranteeing all of these properties.
 
 Even a single dropped or mis-aligned 32-bit word would break:
 
@@ -87,7 +87,6 @@ Verified:
   - PHY negotiation
   - RGMII routing
   - MAC address correctness
-  - Header fields 
 
 This stage confirmed the hardware stack was electrically and logically correct.
 
@@ -123,7 +122,7 @@ This is the final configuration used in the project.
 
 ---
 
-## 4. Key Technical Insights (Directly Learned from Part-1)
+## 4. Key Technical Insights (Directly Learned from Ethernet Part)
 
 These insights guide the later parts of the RDMA pipeline.
 
@@ -133,7 +132,7 @@ We learned through debugging that:
 - while `ready=0` `valid` must remain high  
 - `data` and `keep` **must not change**  
 
-Our `axis_rx_to_bram` module enforces this rule strictly.
+Our `axis_rx_to_rdma` module enforces this rule strictly.
 
 Validator of decapsulator hangs the line for multiple clock cycles so it was important to keep the valid bit until that handshake happens. Otherwise, the first word of rdma header was lost which was opcode so the write DDR operation failed.
 
@@ -145,7 +144,7 @@ The PHY internally divides its clock to achieve 10/100 operation (not for our ca
 
 ---
 
-### **4.4 The MAC Does Not Autodetect Speed — PHY Negotiates, MAC Obeys**
+### **4.3 The MAC Does Not Autodetect Speed — PHY Negotiates, MAC Obeys**
 We learned:
 
 - PHY negotiates speed with link partner  
@@ -157,32 +156,18 @@ We learned:
 
 ## 5. Documentation Structure
 
-Part-1 is documented across several detailed sections:
+Ethernet MAC & PHY Subsytem is documented across several detailed sections:
 
 - **AXI Ethernet MAC** – MAC configuration & internals
 - **RGMII & PHY** – PHY electrical & logical behavior RGMMI explanations
 - **MDIO** – MDIO logic and how we use it to reach PHY registers  
 - **Clocking & Timing** – Clocking architecture  
-- **AXIS RX/TX_to_RDMA Block** – Custom RX pass through module controlling txd, txc, rxd, rxs pins of ethernet ip block
+- **AXIS RX/TX_to_RDMA Block** – Custom RX and TX pass through module controlling txd, txc, rxd, rxs pins of ethernet ip block
 - **RX/TX Ethernet Tests** – TX RX tests separate from RDMA logic  
 - **RDMA RX** – Final RDMA integration  
 
 
-Each file focuses on a specific subtopic, and I explained everything as clearly and thoroughly as possible. I did not only cover the block design and its settings, but also the underlying logic and design principles. For this reason, I went through every relevant detail and compared the different interfaces, explaining why we use them and how they operate.
+Each section focuses on a specific subtopic, and I explained everything as clearly and thoroughly as possible. I did not only cover the block design and its settings, but also the underlying logic and design principles. For this reason, I went through every relevant detail and compared the different interfaces, explaining why we use them and how they operate.
 
----
-
-## 6. Summary
-
-Part-1 of RDMA project provides the entire foundational Ethernet subsystem required for the RDMA receiver.  
-It handles:
-
-- PHY configuration initialization and configuration 
-- MAC configuration and link setup 
-- TX path handling   
-- RX path handling
-- AXI-Stream correctness  
-- Backpressure-safe buffering and flow control  
-- Integration with the full RDMA pipeline  
 
 

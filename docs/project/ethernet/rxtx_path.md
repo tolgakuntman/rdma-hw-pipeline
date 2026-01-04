@@ -101,7 +101,7 @@ Steps:
 # 4. Role of Each Module
 
 ## 4.1 AXI Ethernet Subsystem  
-Core of the design.  
+
 Provides:
 
 - AXI4-Lite registers for control
@@ -154,8 +154,8 @@ The RX module writes directly into the BRAM, and PS reads out captured frame byt
 
 Vitis application performs:
 
-1. Initialize caches
-2. InitEth() sequence 
+1.Initialize caches
+2.InitEth() sequence 
 
    - LookupConfig  
    - CfgInitialize  
@@ -165,7 +165,7 @@ Vitis application performs:
    - Autoneg enable  
    - Wait for LINK UP
 
-3. Read BRAM by polling and print captured frame formatting
+3.Read BRAM by polling and print captured frame formatting
 
 ---
 

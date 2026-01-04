@@ -53,7 +53,7 @@ The 100 MHz domain is driven directly from **`pl_clk0`** of the PS.
 
 **The axis_clk signal of AXI ethernet block should be connected to the same clock source as the AXI4-Stream interface.**
 
-- **All AXI Stream** connections are also on the same 100Mhz so all data stream inside the RDMA logic works with this clock
+- **All AXI Stream** connections are also on the same 100Mhz so all data stream inside the RDMA logic works with this clock.
 
 - **All AXI-Lite slaves** on the same 100 MHz clock.
 
